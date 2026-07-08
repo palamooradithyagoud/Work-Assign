@@ -954,6 +954,106 @@ function showPanel(id) {
   if (el) el.style.display = 'block';
 }
 
+// ═══════════════════════════════════════════════════
+// ACTIVE SPRINT DASHBOARD (Step 8)
+// ═══════════════════════════════════════════════════
+async function loadActiveSprintDashboard(projectId) {
+  try {
+    const resp = await fetch(`/api/tasks?project_id=${projectId}`);
+    if (!resp.ok) { console.warn('Sprint tasks fetch failed:', resp.status); return; }
+    const tasks = await resp.json();
+
+    // ── KPI Metrics ─────────────────────────────────
+    const total     = tasks.length;
+    const done      = tasks.filter(t => t.status === 'Completed' || t.status === 'Done').length;
+    const late      = tasks.filter(t => t.deadline && new Date(t.deadline) < new Date() && t.status !== 'Completed' && t.status !== 'Done').length;
+    const helpReqs  = tasks.filter(t => t.help_requested).length;
+    const pct       = total ? Math.round((done / total) * 100) : 0;
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    setEl('sprint-progress-pct', pct + '%');
+    setEl('sprint-late-tasks',   late);
+    setEl('sprint-help-requests', helpReqs);
+
+    // ── Kanban Board ────────────────────────────────
+    const kanban = document.getElementById('pm-kanban-board');
+    if (kanban) {
+      const cols = ['To Do', 'In Progress', 'Review', 'Completed'];
+      const colColors = { 'To Do': '#6C63FF', 'In Progress': '#F59E0B', 'Review': '#4F9AFF', 'Completed': '#10B981' };
+      kanban.innerHTML = cols.map(col => {
+        const colTasks = tasks.filter(t => t.status === col || (col === 'Completed' && t.status === 'Done'));
+        return `
+          <div class="kanban-col" style="flex:1; min-width:180px; background:rgba(255,255,255,0.02); border-radius:10px; padding:12px; border-top: 3px solid ${colColors[col]};">
+            <div style="font-weight:800; font-size:12px; color:${colColors[col]}; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">
+              ${col} <span style="background:${colColors[col]}22; color:${colColors[col]}; border-radius:99px; padding:1px 8px; font-size:11px;">${colTasks.length}</span>
+            </div>
+            ${colTasks.length === 0
+              ? `<div style="font-size:11px; color:var(--text-muted); text-align:center; padding:12px 0;">Empty</div>`
+              : colTasks.map(t => `
+                <div style="background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:8px;">
+                  <div style="font-size:12px; font-weight:700; margin-bottom:4px;">${esc(t.task_name)}</div>
+                  <div style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">${esc(t.assigned_to || 'Unassigned')}</div>
+                  <div style="display:flex; gap:6px; align-items:center;">
+                    <span class="badge priority-${(t.priority||'medium').toLowerCase()}" style="font-size:10px;">${t.priority || 'Medium'}</span>
+                    ${t.deadline ? `<span style="font-size:10px; color:var(--text-muted);">${t.deadline}</span>` : ''}
+                  </div>
+                </div>`).join('')
+            }
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ── Team Workload ────────────────────────────────
+    const workloadEl = document.getElementById('sprint-workload-list');
+    if (workloadEl) {
+      const byMember = {};
+      tasks.forEach(t => {
+        const id = t.assigned_to || 'Unassigned';
+        if (!byMember[id]) byMember[id] = { total: 0, done: 0 };
+        byMember[id].total++;
+        if (t.status === 'Completed' || t.status === 'Done') byMember[id].done++;
+      });
+      if (Object.keys(byMember).length === 0) {
+        workloadEl.innerHTML = `<div style="color:var(--text-muted); font-size:13px; padding:12px 0;">No tasks assigned yet.</div>`;
+      } else {
+        workloadEl.innerHTML = Object.entries(byMember).map(([member, d]) => {
+          const pct2 = d.total ? Math.round((d.done / d.total) * 100) : 0;
+          return `
+            <div style="display:flex; align-items:center; gap:10px;">
+              <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(member)}&background=6C63FF&color=fff&size=32" style="width:28px;height:28px;border-radius:50%;flex-shrink:0;"/>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(member)}</div>
+                <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:99px; margin-top:4px;">
+                  <div style="height:100%; width:${pct2}%; background:var(--accent-green); border-radius:99px; transition:width 0.5s;"></div>
+                </div>
+              </div>
+              <span style="font-size:11px; color:var(--text-muted); flex-shrink:0;">${d.done}/${d.total}</span>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    // ── Risk Alerts ──────────────────────────────────
+    const riskEl = document.getElementById('sprint-risk-alerts');
+    if (riskEl) {
+      const risks = [];
+      if (late > 0)     risks.push({ icon: 'fa-clock', color: 'var(--accent-red)',   text: `${late} task${late > 1 ? 's are' : ' is'} past deadline` });
+      if (helpReqs > 0) risks.push({ icon: 'fa-hand', color: 'var(--accent-amber)', text: `${helpReqs} help request${helpReqs > 1 ? 's' : ''} pending` });
+      if (pct === 100)  risks.push({ icon: 'fa-trophy', color: 'var(--accent-green)', text: 'All tasks completed! 🎉' });
+      if (risks.length === 0) risks.push({ icon: 'fa-check-circle', color: 'var(--accent-green)', text: 'No active risks detected.' });
+      riskEl.innerHTML = risks.map(r => `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:3px solid ${r.color};">
+          <i class="fa-solid ${r.icon}" style="color:${r.color}; font-size:14px;"></i>
+          <span style="font-size:12px;">${r.text}</span>
+        </div>`).join('');
+    }
+  } catch(e) {
+    console.error('loadActiveSprintDashboard error:', e);
+  }
+}
+
+
 function populateReviewPanel(proj) {
   const reqEl = document.getElementById('review-requirements');
   reqEl.innerHTML = `

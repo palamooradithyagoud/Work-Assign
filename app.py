@@ -1219,7 +1219,8 @@ def api_assign_pm(id):
 
 @app.route("/api/projects/<id>/pm-review", methods=["POST"])
 def api_pm_review(id):
-    if session.get("role") != "project_manager":
+    role = session.get("role")
+    if role not in ("project_manager", "admin"):
         return jsonify({"error": "Forbidden"}), 403
     body = request.get_json(force=True)
     action  = body.get("action")  # "approve" | "request_changes"
@@ -1229,16 +1230,17 @@ def api_pm_review(id):
     proj = db.get_by_id("projects", id)
     if not proj:
         return jsonify({"error": "Project not found"}), 404
-    if proj.get("assigned_pm") != session["user_id"]:
+    # Only enforce PM ownership check for non-admin users
+    if role == "project_manager" and proj.get("assigned_pm") and proj.get("assigned_pm") != session["user_id"]:
         return jsonify({"error": "You are not assigned to this project"}), 403
     new_status = "pm_approved" if action == "approve" else "changes_requested"
     updated = db.update("projects", id, {"workflow_status": new_status, "pm_comment": comment})
     if action == "approve":
-        db.add_notification(proj.get("created_by", "admin-id-111"),
+        db.add_notification(proj.get("created_by", session["user_id"]),
             "Project Approved by PM", f"'{proj['project_name']}' approved. PM is now defining modules.", "success")
         db.log_action("PROJECT_PM_APPROVED", f"PM approved '{proj['project_name']}'.", session.get("email"))
     else:
-        db.add_notification(proj.get("created_by", "admin-id-111"),
+        db.add_notification(proj.get("created_by", session["user_id"]),
             "PM Requested Changes", f"PM requested changes for '{proj['project_name']}': {comment}", "warning")
         db.log_action("PROJECT_CHANGES_REQUESTED", f"PM requested changes for '{proj['project_name']}'.", session.get("email"))
     return jsonify(updated)

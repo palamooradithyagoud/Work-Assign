@@ -891,9 +891,10 @@ async function pmReview(action) {
       toast(action === 'approve' ? 'Project approved! Now define modules.' : 'Changes requested.', action === 'approve' ? 'success' : 'warning');
       await loadWorkflowView(currentProject.project_id);
     } else {
-      toast('Failed to submit review.', 'error');
+      const err = await resp.json().catch(() => ({}));
+      toast(err.error || `Server error ${resp.status}`, 'error');
     }
-  } catch(e) { console.error(e); }
+  } catch(e) { console.error(e); toast('Network error — check connection.', 'error'); }
 }
 
 // ═══════════════════════════════════════════════════

@@ -192,6 +192,45 @@ def add_notification(user_id: str, title: str, message: str, notif_type: str = "
     insert("notifications", notif)
 
 def seed_database():
-    # Database seeding is managed externally via rebuild_tables and supabase_schema.sql DDL,
-    # so we can keep this as a simple confirmation step.
-    pass
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Check if users table exists and count users
+        table_exists = True
+        try:
+            cur.execute("SELECT COUNT(*) FROM public.users;")
+            user_count = cur.fetchone()[0]
+        except Exception:
+            # Transaction is aborted, roll back so we can execute DDL setup
+            conn.rollback()
+            table_exists = False
+            user_count = 0
+            
+        if not table_exists or user_count == 0:
+            print("[DB] Database is empty or uninitialized. Bootstrapping schemas and target seeds...")
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            sql_paths = [
+                os.path.join(base_dir, "supabase_schema.sql"),
+                "supabase_schema.sql",
+                "../supabase_schema.sql"
+            ]
+            
+            sql_content = None
+            for path in sql_paths:
+                if os.path.exists(path):
+                    with open(path, "r", encoding="utf-8") as f:
+                        sql_content = f.read()
+                    break
+                    
+            if sql_content:
+                cur.execute(sql_content)
+                conn.commit()
+                print("[DB] Database successfully initialized with target schemas and seeds.")
+            else:
+                print("[DB ERROR] Could not find supabase_schema.sql for database bootstrap.")
+                
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"[DB ERROR] seed_database failed: {e}")

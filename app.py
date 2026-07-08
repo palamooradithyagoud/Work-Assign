@@ -60,11 +60,11 @@ def api_debug_db():
     try:
         conn = db.get_conn()
         cur = conn.cursor()
-        cur.execute("SELECT version();")
-        version = cur.fetchone()[0]
+        cur.execute("SELECT version() as ver;")
+        version = cur.fetchone()["ver"]
         
-        cur.execute("SELECT COUNT(*) FROM public.users;")
-        users_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) as cnt FROM public.users;")
+        users_count = cur.fetchone()["cnt"]
         
         cur.close()
         conn.close()

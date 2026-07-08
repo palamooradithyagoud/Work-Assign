@@ -21,8 +21,9 @@ if os.environ.get('VERCEL') and DATABASE_URL:
     match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", DATABASE_URL)
     if match:
         project_ref = match.group(1)
+        pooler_prefix = "aws-1" if project_ref == "jxnacpjbrnbihgmcydwr" else "aws-0"
         pooler_region = "ap-south-1" if project_ref == "jxnacpjbrnbihgmcydwr" else "ap-southeast-1"
-        DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", f"aws-0-{pooler_region}.pooler.supabase.com:6543")
+        DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", f"{pooler_prefix}-{pooler_region}.pooler.supabase.com:6543")
         DATABASE_URL = DATABASE_URL.replace("postgresql://postgres:", f"postgresql://postgres.{project_ref}:")
 
 

@@ -138,6 +138,25 @@ def get_all(table: str) -> list:
         return []
 
 
+def get_where(table: str, col: str, val) -> list:
+    try:
+        return _execute(f"SELECT * FROM public.{table} WHERE {col} = %s;", (val,), fetch="all") or []
+    except Exception as e:
+        print(f"[DB ERROR] get_where {table}.{col}: {e}")
+        return []
+
+
+def get_where_in(table: str, col: str, vals: list) -> list:
+    if not vals:
+        return []
+    try:
+        placeholders = ", ".join(["%s"] * len(vals))
+        return _execute(f"SELECT * FROM public.{table} WHERE {col} IN ({placeholders});", tuple(vals), fetch="all") or []
+    except Exception as e:
+        print(f"[DB ERROR] get_where_in {table}.{col}: {e}")
+        return []
+
+
 def get_by_id(table: str, id_val: str) -> dict:
     try:
         pk = _get_pk(table)

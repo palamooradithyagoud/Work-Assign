@@ -282,12 +282,17 @@ def api_projects():
         return jsonify({"error": "Unauthorized"}), 401
         
     if request.method == "GET":
-        projects = db.get_all("projects")
-        if session.get("role") == "employee":
-            tasks = db.get_all("tasks")
-            assigned_project_ids = {t["project_id"] for t in tasks if t.get("assigned_to") == session["user_id"]}
+        role = session.get("role")
+        if role == "project_manager":
+            return jsonify(db.get_where("projects", "assigned_pm", session["user_id"]))
+        if role == "employee":
+            tasks = db.get_where("tasks", "assigned_to", session["user_id"])
+            assigned_project_ids = {t["project_id"] for t in tasks if t.get("project_id")}
+            if not assigned_project_ids:
+                return jsonify([])
+            projects = db.get_all("projects")
             return jsonify([p for p in projects if p["project_id"] in assigned_project_ids])
-        return jsonify(projects)
+        return jsonify(db.get_all("projects"))
         
     # POST - Create project (Admin only creates the project, enters minimal details, selects PM)
     if session.get("role") != "admin":
@@ -302,12 +307,12 @@ def api_projects():
     
     new_proj = {
         "project_id": f"PRJ{random.randint(100, 999)}",
-        "project_name": project_name,
-        "client": body.get("client", "").strip(),
-        "description": body.get("description", "").strip(),
+        "project_name": (body.get("project_name") or "").strip(),
+        "client": (body.get("client") or "").strip(),
+        "description": (body.get("description") or "").strip(),
         "priority": body.get("priority", "Medium"),
         "deadline_days": int(body.get("deadline_days", 30)) if body.get("deadline_days") else 30,
-        "budget": body.get("budget", "").strip(),
+        "budget": (body.get("budget") or "").strip(),
         "assigned_pm": pm_id or None,
         "workflow_status": "pending_pm" if pm_id else "draft",
         "status": "planning",
@@ -1247,11 +1252,12 @@ def api_project_workflow(id):
     proj = db.get_by_id("projects", id)
     if not proj:
         return jsonify({"error": "Project not found"}), 404
-    modules  = [m for m in db.get_all("modules")  if m["project_id"] == id]
-    teams    = [t for t in db.get_all("teams")    if t["project_id"] == id]
-    members  = db.get_all("team_members")
-    approvals = [a for a in db.get_all("lead_approvals") if a["project_id"] == id]
-    team_ids = {t["team_id"] for t in teams}
+    modules  = db.get_where("modules", "project_id", id)
+    teams    = db.get_where("teams", "project_id", id)
+    team_ids = [t["team_id"] for t in teams]
+    members  = db.get_where_in("team_members", "team_id", team_ids) if team_ids else []
+    approvals = db.get_where("lead_approvals", "project_id", id)
+    
     team_members_map = {tid: [] for tid in team_ids}
     for m in members:
         if m["team_id"] in team_members_map:
@@ -1551,15 +1557,15 @@ def api_ai_assign_all(id):
     all_assignments = []
     
     # Automatically create teams for each module in the AI plan
+    existing_teams = db.get_where("teams", "project_id", id)
     for idx, mod in enumerate(modules):
         mod_name = mod.get("module_name", f"Module {idx+1}")
         req_skills = mod.get("required_skills", "")
         
         # Check if team already exists for this module, else create it
-        teams = db.get_all("teams")
         team = None
-        for t in teams:
-            if t["project_id"] == id and t["module_id"] == mod_name:
+        for t in existing_teams:
+            if t["module_id"] == mod_name:
                 team = t
                 break
         if not team:
@@ -1577,6 +1583,7 @@ def api_ai_assign_all(id):
                 "created_at": datetime.datetime.utcnow().isoformat() + "Z"
             }
             db.insert("teams", team)
+            existing_teams.append(team)
             
         # Score eligible candidates using 5-factor scoring engine
         scored = _score_employees_for_role(employees, req_skills, exclude_ids=list(existing_assigned))
@@ -1613,6 +1620,7 @@ def api_ai_assign_all(id):
                 "experience_score": f"{e.get('experience', 1)} years",
                 "availability": f"{100 - e.get('current_workload', 0)}%",
                 "current_workload": f"{e.get('current_workload', 0)}%",
+                "performance": float(e.get("performance_score") or 85.0),
                 "confidence_score": f"{s['confidence']}%",
                 "reason_for_selection": (
                     f"Selected due to {s['skill_match']}% skill match with {mod_name} requirements, "

@@ -685,12 +685,8 @@ async function loadPMDashboard() {
   const greeting = document.getElementById('pm-greeting');
   if (greeting) greeting.textContent = `Good day, ${currentUser.full_name?.split(' ')[0] || 'PM'}`;
   try {
-    const [projResp, teamsResp] = await Promise.all([
-      fetch('/api/projects'),
-      fetch('/api/projects')
-    ]);
-    const allP = await projResp.json();
-    const myProjects = allP.filter(p => p.assigned_pm === currentUser.id);
+    const projResp = await fetch('/api/projects');
+    const myProjects = await projResp.json();
 
     document.getElementById('pm-kpi-total').textContent   = myProjects.length;
     document.getElementById('pm-kpi-pending').textContent = myProjects.filter(p => p.workflow_status === 'pending_pm').length;
@@ -746,8 +742,7 @@ async function loadPMProjects() {
   const container = document.getElementById('pm-projects-cards');
   try {
     const resp = await fetch('/api/projects');
-    const all = await resp.json();
-    const mine = all.filter(p => p.assigned_pm === currentUser.id);
+    const mine = await resp.json();
     if (mine.length === 0) {
       container.innerHTML = `<div class="empty-state card"><i class="fa-solid fa-folder-open"></i><h3>No Projects Assigned</h3><p>You haven't been assigned to any projects yet.</p></div>`;
       return;

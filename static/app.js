@@ -1748,7 +1748,9 @@ function openModal(id) {
   const overlay = document.getElementById(id);
   if (!overlay) return;
   overlay.style.display = 'flex';
-  requestAnimationFrame(() => overlay.classList.add('open'));
+  // Force reflow so the transition plays
+  overlay.offsetHeight;
+  overlay.classList.add('open');
   // Special on-open actions
   if (id === 'modal-create-project') loadPMsIntoDropdown();
   if (id === 'modal-add-team') populateModuleSelector();
@@ -1759,7 +1761,8 @@ function closeModal(id) {
   const overlay = document.getElementById(id);
   if (!overlay) return;
   overlay.classList.remove('open');
-  setTimeout(() => overlay.style.display = '', 200);
+  // Hide after CSS transition finishes (200ms)
+  setTimeout(() => { overlay.style.display = 'none'; }, 220);
 }
 
 function handleOverlayClick(e, id) {

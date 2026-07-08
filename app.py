@@ -675,6 +675,76 @@ def api_run_assignments():
     return jsonify(assignments)
 
 # ──────────────────────────────────────────────
+# APPROVE & SAVE ASSIGNMENT TO DATABASE
+# ──────────────────────────────────────────────
+@app.route("/api/assignments/approve", methods=["POST"])
+def api_approve_assignment():
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+
+    body = request.get_json(force=True)
+    project_id  = body.get("project_id")
+    employee_id = body.get("employee_id")
+    role        = body.get("role", "Team Member")
+    confidence  = body.get("confidence", "N/A")
+    reason      = body.get("reason", "")
+
+    if not project_id or not employee_id:
+        return jsonify({"error": "project_id and employee_id are required"}), 400
+
+    proj = db.get_by_id("projects", project_id)
+    emp  = db.get_by_id("employees", employee_id)
+
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    if not emp:
+        return jsonify({"error": "Employee not found"}), 404
+
+    # Create an assigned task for this team member
+    task_id = str(uuid.uuid4())
+    deadline = (datetime.date.today() + datetime.timedelta(days=int(proj.get("deadline_days", 30)))).isoformat()
+    task = {
+        "id": task_id,
+        "project_id": project_id,
+        "task_name": f"{role} — {proj['project_name']}",
+        "description": f"Assigned as {role} with {confidence} match confidence. {reason}",
+        "assigned_to": employee_id,
+        "priority": proj.get("priority", "medium").lower(),
+        "deadline": deadline,
+        "estimated_hours": 40,
+        "status": "To Do",
+        "comments": [],
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    db.insert("tasks", task)
+
+    # Increase workload by 20 (capped at 100)
+    new_workload = min(emp.get("current_workload", 0) + 20, 100)
+    db.update("employees", employee_id, {"current_workload": new_workload})
+
+    # Notify the assigned employee
+    db.add_notification(
+        user_id=employee_id,
+        title="You've Been Assigned to a Project!",
+        message=f"You have been assigned as {role} on '{proj['project_name']}'. Deadline: {deadline}.",
+        notif_type="success"
+    )
+
+    db.log_action(
+        "ASSIGNMENT_APPROVED",
+        f"'{emp['name']}' approved as '{role}' on project '{proj['project_name']}' (confidence: {confidence}).",
+        session.get("email")
+    )
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "employee_name": emp["name"],
+        "role": role,
+        "project_name": proj["project_name"]
+    })
+
+# ──────────────────────────────────────────────
 # AI SUCCESS PREDICTOR API
 # ──────────────────────────────────────────────
 @app.route("/api/projects/<id>/predict", methods=["GET"])

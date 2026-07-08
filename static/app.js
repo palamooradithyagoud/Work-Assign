@@ -548,64 +548,95 @@ async function runAIAssignment() {
   }
 }
 
-function renderAssignmentsResults() {
-  const container = document.getElementById("assignments-results");
-  if (!currentProject.assignments) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <i class="fa-solid fa-users-gear" style="font-size:32px;margin-bottom:12px;color:var(--text-muted)"></i>
-        <p>No resource allocations analyzed yet.</p>
-        <button class="btn btn-purple btn-sm" onclick="runAIAssignment()" style="margin-top:10px">Run Assignment Engine</button>
-      </div>
-    `;
-    return;
-  }
-
-  const assigns = currentProject.assignments;
-  container.innerHTML = `
-    <div class="section-header" style="margin-bottom:15px">
-      <h3><i class="fa-solid fa-graduation-cap"></i> Auditable Decision Panel (XAI)</h3>
-    </div>
-    ${assigns.map(a => {
-      return `
-        <div class="assignment-role-card">
-          <div class="role-card-header">
-            <h4>Role: ${esc(a.role)}</h4>
-            <span class="badge badge-completed">Match: ${a.confidence}</span>
-          </div>
-          <div class="decision-grid">
-            <div>
-              <p><strong>Assigned Resource:</strong> ${esc(a.employee_name)}</p>
-              <p style="color:var(--text-sub);margin-top:6px"><strong>Reasoning:</strong> ${esc(a.reason)}</p>
-              
-              <ul class="trace-list">
-                ${a.decision_trace.map(t => `<li><i class="fa-solid fa-check text-emerald" style="margin-right:6px"></i> ${esc(t)}</li>`).join("")}
-              </ul>
-            </div>
-            <div style="border-left: 1px solid var(--border-color); padding-left:20px">
-              <p style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">Alternative Option</p>
-              <p><strong>Employee:</strong> ${esc(a.alternative.employee_name)}</p>
-              <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px">${esc(a.alternative.reason_not_selected)}</p>
-            </div>
-          </div>
-          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; border-top:1px solid var(--border-color); padding-top:12px">
-            <button class="btn btn-secondary btn-sm" onclick="openModifyAssignmentModal('${a.role}')">Modify</button>
-            <button class="btn btn-primary btn-sm" onclick="approveAssignment('${a.role}', '${a.employee_id}')">Approve Assignment</button>
-          </div>
-        </div>
-      `;
-    }).join("")}
-  `;
+function renderAssignmentsResults() {
+  const container = document.getElementById("assignments-results");
+  if (!currentProject.assignments || currentProject.assignments.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-users-gear" style="font-size:32px;margin-bottom:12px;color:var(--text-muted)"></i>
+        <p>No resource allocations analyzed yet.</p>
+        <button class="btn btn-purple btn-sm" onclick="runAIAssignment()" style="margin-top:10px">Run Assignment Engine</button>
+      </div>
+    `;
+    return;
+  }
+
+  const assigns = currentProject.assignments;
+  container.innerHTML = `
+    <div class="section-header" style="margin-bottom:15px">
+      <h3><i class="fa-solid fa-graduation-cap"></i> Auditable Decision Panel (XAI)</h3>
+    </div>
+    ${assigns.map(a => {
+      return `
+        <div class="assignment-role-card">
+          <div class="role-card-header">
+            <h4>Role: ${esc(a.role)}</h4>
+            <span class="badge badge-completed">Match: ${a.confidence}</span>
+          </div>
+          <div class="decision-grid">
+            <div>
+              <p><strong>Assigned Resource:</strong> ${esc(a.employee_name)}</p>
+              <p style="color:var(--text-sub);margin-top:6px"><strong>Reasoning:</strong> ${esc(a.reason)}</p>
+              <ul class="trace-list">
+                ${a.decision_trace.map(t => `<li><i class="fa-solid fa-check" style="color:#10b981;margin-right:6px"></i> ${esc(t)}</li>`).join("")}
+              </ul>
+            </div>
+            <div style="border-left: 1px solid var(--border-color); padding-left:20px">
+              <p style="font-weight:700;font-size:12px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">Alternative Option</p>
+              <p><strong>Employee:</strong> ${esc(a.alternative.employee_name)}</p>
+              <p style="font-size:11.5px;color:var(--text-muted);margin-top:4px">${esc(a.alternative.reason_not_selected)}</p>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px; border-top:1px solid var(--border-color); padding-top:12px">
+            <button class="btn btn-secondary btn-sm" onclick="openModifyAssignmentModal('${a.role}')">Modify</button>
+            <button class="btn btn-primary btn-sm" id="approve-btn-${a.role.replace(/\s+/g,'-')}" onclick="approveAssignment('${a.role}', '${a.employee_id}')">Approve & Assign Worker</button>
+          </div>
+        </div>
+      `;
+    }).join("")}
+  `;
 }
 
-async function approveAssignment(role, empId) {
-  // Simulates final approval by creating tasks or logging audit
-  try {
-    // Modify assignee on tasks that match this project
-    showAlert(`Approved assignment of role '${role}' to selected resource.`, "success");
-  } catch (e) {
-    console.error(e);
-  }
+async function approveAssignment(role, empId) {
+  if (!currentProject) return;
+
+  const btnId = "approve-btn-" + role.replace(/\s+/g, '-');
+  const btn = document.getElementById(btnId) || event.currentTarget;
+  btn.disabled = true;
+  btn.textContent = "Saving...";
+
+  try {
+    const assignment = (currentProject.assignments || []).find(a => a.role === role);
+    const resp = await fetch("/api/assignments/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id:  currentProject.project_id,
+        employee_id: empId,
+        role:        role,
+        confidence:  assignment ? assignment.confidence : "N/A",
+        reason:      assignment ? assignment.reason : ""
+      })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      btn.textContent = "\u2713 Assigned";
+      btn.style.background = "#10b981";
+      btn.style.color = "#fff";
+      showAlert(`${data.employee_name} assigned as ${data.role} on '${data.project_name}'. Task created & worker notified!`, "success");
+    } else {
+      const err = await resp.json();
+      showAlert(err.error || "Failed to approve assignment.", "error");
+      btn.disabled = false;
+      btn.textContent = "Approve & Assign Worker";
+    }
+  } catch (e) {
+    console.error(e);
+    showAlert("Network error while approving assignment.", "error");
+    btn.disabled = false;
+    btn.textContent = "Approve & Assign Worker";
+  }
 }
 
 // ──────────────────────────────────────────────

@@ -1239,18 +1239,230 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .auth-title { font-size: 24px; font-weight: 800; margin-bottom: 6px; }
 .auth-subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 28px; }
 
-/* ─── Responsive ───────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════════
+   RESPONSIVE — Full Laptop & Screen Coverage
+   Breakpoints: 1920 · 1600 · 1440 · 1280 · 1366 · 1200 · 1024 · 900 · 768 · 480
+   ══════════════════════════════════════════════════════════════════ */
+
+/* ─── Large Widescreen (1920px+) ───────────────────────────────── */
+@media (min-width: 1920px) {
+  :root { --sidebar-w: 280px; }
+  html { font-size: 15px; }
+  .content-area { padding: 32px; }
+  .kpi-grid { grid-template-columns: repeat(6, 1fr); }
+  .modal-xl { max-width: 1300px; }
+}
+
+/* ─── Standard Wide (1600px) ───────────────────────────────────── */
+@media (max-width: 1600px) {
+  .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+}
+
+/* ─── Common Laptop (1440px) ───────────────────────────────────── */
+@media (max-width: 1440px) {
+  :root { --sidebar-w: 240px; }
+  .main-aside { grid-template-columns: 1fr 300px; }
+  .modal-xl { max-width: 1000px; }
+}
+
+/* ─── Standard Laptop (1280px) ─────────────────────────────────── */
+@media (max-width: 1280px) {
+  :root { --sidebar-w: 230px; }
+  html { font-size: 13.5px; }
+  .main-aside { grid-template-columns: 1fr 280px; }
+  .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .kpi-value { font-size: 28px; }
+  .modal-xl { max-width: 940px; }
+  .content-area { padding: 20px; }
+}
+
+/* ─── Budget Laptop (1366px common) ────────────────────────────── */
+@media (max-width: 1366px) and (min-width: 1025px) {
+  .topbar { padding: 0 18px; }
+  .search-box { min-width: 180px; }
+}
+
+/* ─── Small Laptop / Large Tablet (1024px) ─────────────────────── */
+@media (max-width: 1024px) {
+  :root { --sidebar-w: 220px; }
+  html { font-size: 13px; }
+  .content-area { padding: 18px; }
+  .main-aside { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr 1fr; gap: 14px; }
+  .three-col { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .kpi-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .kpi-card { padding: 16px; }
+  .kpi-value { font-size: 26px; }
+  .modal-xl { max-width: 90vw; }
+  .modal-lg { max-width: 85vw; }
+  .workflow-stepper { padding: 16px 14px; gap: 0; }
+  .step-label { font-size: 9px; max-width: 70px; }
+  .page-header-left h1 { font-size: 20px; }
+  .topbar { padding: 0 18px; gap: 12px; }
+  .search-box { min-width: 160px; }
+  .table-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .table-toolbar-actions { width: 100%; }
+  .emp-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+}
+
+/* ─── Collapsed Sidebar (900px) ────────────────────────────────── */
 @media (max-width: 900px) {
+  :root { --sidebar-w: 72px; }
   .sidebar { width: 72px; }
   .sidebar .nav-item span,
   .sidebar .nav-section-label,
   .sidebar .logo-text,
-  .sidebar .user-info { display: none; }
+  .sidebar .user-info,
+  .sidebar .nav-badge { display: none; }
+  .sidebar .logo { justify-content: center; }
   .sidebar .logo-icon { margin: 0 auto; }
+  .sidebar .nav-item { justify-content: center; padding: 10px; }
+  .sidebar .nav-item i { width: auto; font-size: 16px; }
+  .sidebar .nav-item.active { border-left: none; border-bottom: none; }
+  .sidebar-footer { padding: 10px; }
+  .sidebar-footer .user-card { justify-content: center; padding: 8px; background: none; }
+  .sidebar-footer .user-avatar { margin: 0; }
   .content-area { padding: 16px; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .form-grid { grid-template-columns: 1fr; }
   .main-aside { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+  .three-col { grid-template-columns: 1fr; }
+  .modal-overlay { padding: 16px; }
+  .modal { max-height: 92vh; }
+  .modal-xl, .modal-lg { max-width: 100%; }
+  .topbar-title { font-size: 15px; }
+  .search-box { display: none; }
+  .page-header { flex-direction: column; gap: 10px; }
+  .page-header-actions { width: 100%; }
+  .kanban-board { gap: 10px; }
+  .kanban-col { min-width: 220px; }
+  .emp-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+  .approval-metrics { grid-template-columns: repeat(2, 1fr); }
+  .lead-score-table .score-row {
+    grid-template-columns: 30px 1fr auto auto auto;
+  }
+}
+
+/* ─── Tablet (768px) ───────────────────────────────────────────── */
+@media (max-width: 768px) {
+  html { font-size: 12.5px; }
+  .content-area { padding: 12px; }
+  .card { padding: 16px; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .kpi-card { padding: 14px; gap: 8px; }
+  .kpi-value { font-size: 22px; }
+  .kpi-icon { width: 34px; height: 34px; font-size: 14px; }
+  .two-col { grid-template-columns: 1fr; gap: 12px; }
+  .three-col { grid-template-columns: 1fr; gap: 12px; }
+  .main-aside { grid-template-columns: 1fr; }
+  .workflow-stepper {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 14px;
+    overflow: visible;
+  }
+  .workflow-step::after { display: none; }
+  .workflow-step { min-width: unset; }
+  .page-header-left h1 { font-size: 18px; }
+  .topbar { padding: 0 14px; height: 56px; }
+  .topbar-title { font-size: 14px; }
+  table { font-size: 12px; }
+  thead th, tbody td { padding: 10px 12px; }
+  .modal-body { padding: 16px; gap: 12px; }
+  .modal-header, .modal-footer { padding: 14px 18px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .emp-grid { grid-template-columns: repeat(2, 1fr); }
+  .kanban-col { min-width: 200px; }
+  .auth-card { padding: 28px 20px; }
+  .toast { min-width: 240px; max-width: 300px; font-size: 12px; }
+  .toast-container { bottom: 12px; right: 12px; }
+}
+
+/* ─── Mobile (480px) ───────────────────────────────────────────── */
+@media (max-width: 480px) {
+  html { font-size: 12px; }
+  .app-shell { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    z-index: 200;
+  }
+  .sidebar-header { display: none; }
+  .sidebar-nav {
+    flex-direction: row;
+    padding: 8px;
+    gap: 4px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav-section { display: contents; margin: 0; }
+  .nav-section-label { display: none; }
+  .sidebar-footer { display: none; }
+  .nav-item { padding: 8px 12px; border-radius: var(--radius-sm); }
+  .nav-item span { display: inline; font-size: 11px; }
+  .nav-item i { font-size: 13px; }
+  .main-content { height: calc(100vh - 56px); }
+  .content-area { padding: 10px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-card { padding: 12px; }
+  .kpi-value { font-size: 20px; }
+  .card { padding: 12px; }
+  .workflow-stepper { grid-template-columns: repeat(4, 1fr); padding: 10px 8px; }
+  .step-label { display: none; }
+  .modal-overlay { padding: 8px; align-items: flex-end; }
+  .modal { border-radius: var(--radius-lg) var(--radius-lg) 0 0; max-height: 95vh; }
+  .modal-xl, .modal-lg, .modal-sm { max-width: 100%; }
+  .emp-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .emp-card { padding: 12px; }
+  .emp-avatar-lg { width: 48px; height: 48px; }
+  .kanban-board { flex-direction: column; overflow-x: visible; }
+  .kanban-col { min-width: 100%; }
+  .btn { padding: 8px 14px; font-size: 12px; }
+  .btn-lg { padding: 10px 18px; font-size: 13px; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 500px; }
+  .auth-card { padding: 24px 16px; border-radius: var(--radius-lg); }
+  .auth-title { font-size: 20px; }
+}
+
+/* ─── Fix table overflow on all sizes ──────────────────────────── */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ─── Prevent horizontal overflow app-wide ─────────────────────── */
+.content-area, .view, .card, .modal-body { overflow-x: hidden; }
+.kanban-board { overflow-x: auto; }
+
+/* ─── Prevent search bar crush on mid-screens ──────────────────── */
+@media (max-width: 1100px) and (min-width: 901px) {
+  .search-box { min-width: 140px; }
+  .topbar { padding: 0 16px; gap: 10px; }
+}
+
+/* ─── Workflow stepper overflow on 1024px ─────────────────────── */
+@media (max-width: 1100px) {
+  .workflow-stepper { overflow-x: auto; padding: 16px 12px; }
+  .workflow-step { min-width: 70px; }
+  .step-label { font-size: 9px; max-width: 65px; }
+  .step-circle { width: 28px; height: 28px; font-size: 11px; }
+}
+
+/* ─── Form grid collapses to 1 col on narrow modals ────────────── */
+@media (max-width: 640px) {
+  .modal .form-grid { grid-template-columns: 1fr !important; }
+  .modal .form-full { grid-column: 1 / -1; }
+}
+
+/* ─── Notification panel on small screens ─────────────────────── */
+@media (max-width: 520px) {
+  .notif-panel { width: calc(100vw - 24px); right: -16px; }
 }
 
 /* ─── Utility ──────────────────────────────────────────────────── */
@@ -1285,3 +1497,4 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .visible { display: block !important; }
 .cursor-pointer { cursor: pointer; }
 .relative { position: relative; }
+

@@ -272,6 +272,33 @@
     .demo-login-btn:active {
       transform: translateY(1px);
     }
+
+    /* ─── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .auth-card { max-width: 400px; padding: 36px 32px; }
+    }
+    @media (max-width: 768px) {
+      body { align-items: flex-start; padding-top: 40px; }
+      .auth-container { padding: 16px; }
+      .auth-card { max-width: 100%; padding: 32px 24px; border-radius: 16px; }
+      h1 { font-size: 22px; }
+      .bg-orb-1 { width: 250px; height: 250px; }
+      .bg-orb-2 { width: 300px; height: 300px; }
+    }
+    @media (max-width: 480px) {
+      body { align-items: flex-start; padding-top: 20px; overflow-y: auto; }
+      .auth-container { padding: 12px; }
+      .auth-card { padding: 24px 18px; border-radius: 14px; }
+      .auth-logo { margin-bottom: 20px; }
+      .auth-logo i { font-size: 28px; }
+      .auth-logo .logo-text { font-size: 22px; }
+      h1 { font-size: 20px; }
+      .subtitle { font-size: 12.5px; }
+      input { font-size: 14px; padding: 12px 14px; }
+      .btn-primary { font-size: 14px; padding: 13px; }
+      .demo-helpers-container { margin-top: 18px; padding-top: 16px; }
+      .demo-login-btn { font-size: 12px; padding: 9px 12px; }
+    }
   </style>
 </head>
 <body>

@@ -857,21 +857,56 @@
 
 <!-- Replace Employee Modal -->
 <div class="modal-overlay" style="display:none" id="modal-replace-emp" onclick="handleOverlayClick(event,'modal-replace-emp')">
-  <div class="modal">
+  <div class="modal" style="max-width: 500px;">
     <div class="modal-header">
       <div class="modal-title"><i class="fa-solid fa-user-pen"></i> Replace Employee</div>
       <button class="modal-close" onclick="closeModal('modal-replace-emp')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body">
-      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Select a replacement for the assigned slot:</p>
-      <div class="form-group">
-        <label class="form-label">Replacement Employee</label>
-        <select class="form-control" id="replace-emp-select"></select>
+      <!-- Loading State -->
+      <div id="replace-emp-loading" class="empty-state" style="padding: 20px 0;">
+        <div class="spinner spinner-lg"></div>
+        <p style="margin-top:12px;">AI is finding the best replacement candidate...</p>
+      </div>
+
+      <!-- AI Recommended Candidate -->
+      <div id="replace-emp-ai-recommendation" style="display:none; margin-bottom: 20px;">
+        <div style="background: rgba(108, 99, 255, 0.08); border: 1px solid rgba(108, 99, 255, 0.25); border-radius: 8px; padding: 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-weight: 800; font-size: 14px; color: #a39eff; display:flex; align-items:center; gap:6px;">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Llama 3.3 Recommendation
+            </div>
+            <span class="badge badge-purple" id="replace-rec-confidence">95% Match</span>
+          </div>
+          <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+            <img id="replace-rec-photo" style="width:36px; height:36px; border-radius:50%; object-fit:cover;" src=""/>
+            <div>
+              <div id="replace-rec-name" style="font-weight:800; font-size:14px;">-</div>
+              <div id="replace-rec-role" style="font-size:12px; color:var(--text-muted);">-</div>
+            </div>
+          </div>
+          <div style="font-size: 13px; font-style: italic; line-height: 1.5; color: var(--text-secondary); border-left: 2px solid #a39eff; padding-left: 10px;" id="replace-rec-reason">
+            -
+          </div>
+          <div style="margin-top: 12px; display:flex; justify-content: flex-end;">
+            <button class="btn btn-success btn-sm" id="btn-use-recommendation">
+              <i class="fa-solid fa-check"></i> Choose AI Recommendation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Manual Alternative Selector -->
+      <div id="replace-emp-manual-section" style="display:none;">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label" style="font-size:12px; color:var(--text-muted)">Or Select Alternative Candidate Manually</label>
+          <select class="form-control" id="replace-emp-select"></select>
+        </div>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" id="replace-modal-footer" style="display:none">
       <button class="btn btn-secondary" onclick="closeModal('modal-replace-emp')">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmReplaceEmployee()">Replace</button>
+      <button class="btn btn-primary" onclick="confirmReplaceEmployee()">Confirm Manual Selection</button>
     </div>
   </div>
 </div>

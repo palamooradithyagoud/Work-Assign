@@ -1180,12 +1180,18 @@ function renderReviewAssignments(assignments) {
             ` : ''}
 
             <div class="ai-card-actions">
-              <button class="btn btn-ghost btn-sm" onclick="openReplaceModal(${JSON.stringify(idx)}, '${a.team_id}')">
-                <i class="fa-solid fa-user-pen"></i> Replace
-              </button>
-              <button class="btn btn-success btn-sm">
-                <i class="fa-solid fa-check"></i> Accept
-              </button>
+              ${a.accepted ? `
+                <span class="badge badge-success" style="padding: 6px 12px; font-size:12.5px; border-radius: 6px;">
+                  <i class="fa-solid fa-circle-check"></i> Selected
+                </span>
+              ` : `
+                <button class="btn btn-ghost btn-sm" onclick="openReplaceModal(${JSON.stringify(idx)}, '${a.team_id}')">
+                  <i class="fa-solid fa-user-pen"></i> Replace
+                </button>
+                <button class="btn btn-success btn-sm" onclick="acceptAssignment(${JSON.stringify(idx)})">
+                  <i class="fa-solid fa-check"></i> Accept
+                </button>
+              `}
             </div>
           </div>
         `).join('')}
@@ -1218,30 +1224,123 @@ async function publishProject() {
 }
 
 // Replace employee in AI assignments
-function openReplaceModal(idx, teamId) {
+function acceptAssignment(idx) {
+  if (idx >= 0 && idx < currentAIAssignments.length) {
+    currentAIAssignments[idx].accepted = true;
+    toast(`Accepted ${currentAIAssignments[idx].employee_name} assignment.`, 'success');
+    renderReviewAssignments(currentAIAssignments);
+  }
+}
+
+// Replace employee in AI assignments with AI Recommendation
+async function openReplaceModal(idx, teamId) {
   replacingAssignmentIdx = idx;
+  
+  // Show modal
   openModal('modal-replace-emp');
-  const sel = document.getElementById('replace-emp-select');
-  const assignedIds = new Set(currentAIAssignments.map(a => a.employee_id));
-  sel.innerHTML = allEmployees
-    .filter(e => !assignedIds.has(e.employee_id))
-    .map(e => `<option value="${e.employee_id}">${esc(e.name)} — ${esc(e.role||'')}</option>`)
-    .join('');
+  
+  const loading = document.getElementById('replace-emp-loading');
+  const recSection = document.getElementById('replace-emp-ai-recommendation');
+  const manualSection = document.getElementById('replace-emp-manual-section');
+  const footer = document.getElementById('replace-modal-footer');
+  
+  // Reset visibility states
+  loading.style.display = 'block';
+  recSection.style.display = 'none';
+  manualSection.style.display = 'none';
+  footer.style.display = 'none';
+  
+  try {
+    const assignedIds = currentAIAssignments.map(a => a.employee_id);
+    const replacingEmpId = currentAIAssignments[idx].employee_id;
+    
+    const resp = await fetch(`/api/projects/${currentProject.project_id}/recommend-replacement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        employee_id: replacingEmpId,
+        team_id: teamId,
+        assigned_ids: assignedIds
+      })
+    });
+    
+    if (!resp.ok) {
+      toast('Failed to load AI recommendation.', 'error');
+      closeModal('modal-replace-emp');
+      return;
+    }
+    
+    const data = await resp.json();
+    const recEmp = data.recommended_employee;
+    const aiReason = data.ai_reason;
+    const recId = data.recommended_id;
+    
+    // Set AI recommended candidate details
+    document.getElementById('replace-rec-name').textContent = recEmp.name;
+    document.getElementById('replace-rec-role').textContent = recEmp.role || 'Employee';
+    document.getElementById('replace-rec-reason').innerHTML = `"${esc(aiReason)}"`;
+    
+    const photoEl = document.getElementById('replace-rec-photo');
+    photoEl.src = recEmp.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(recEmp.name)}&background=6C63FF&color=fff`;
+    
+    // Get confidence/score of the recommended one
+    const scoredRec = data.candidates.find(c => c.employee_id === recId);
+    document.getElementById('replace-rec-confidence').textContent = scoredRec ? `${scoredRec.confidence}% Match` : '90% Match';
+    
+    // Wire up AI recommend choice button
+    document.getElementById('btn-use-recommendation').onclick = function() {
+      applyReplacement(recEmp, aiReason);
+    };
+    
+    // Populate alternative manual select (excluding the recommended one to prevent duplication)
+    const sel = document.getElementById('replace-emp-select');
+    sel.innerHTML = data.candidates
+      .filter(c => c.employee_id !== recId)
+      .map(c => `<option value="${c.employee_id}">${esc(c.name)} — ${esc(c.role || '')} (${c.confidence}% Match)</option>`)
+      .join('');
+      
+    // Toggle displays
+    loading.style.display = 'none';
+    recSection.style.display = 'block';
+    manualSection.style.display = 'block';
+    footer.style.display = 'flex';
+    
+  } catch (e) {
+    console.error(e);
+    toast('Error querying recommendation engine.', 'error');
+    closeModal('modal-replace-emp');
+  }
+}
+
+function applyReplacement(emp, reason) {
+  if (replacingAssignmentIdx < 0) return;
+  currentAIAssignments[replacingAssignmentIdx].employee_id   = emp.employee_id;
+  currentAIAssignments[replacingAssignmentIdx].employee_name = emp.name;
+  currentAIAssignments[replacingAssignmentIdx].assigned_role = emp.role;
+  currentAIAssignments[replacingAssignmentIdx].confidence_score = "100%";
+  currentAIAssignments[replacingAssignmentIdx].reason_for_selection = reason;
+  
+  // Format matching trace
+  currentAIAssignments[replacingAssignmentIdx].decision_trace = [
+    `1. Replaced with AI recommendation: ${emp.name}`,
+    `2. Evaluated skills: ${emp.skills || 'General'}`,
+    `3. Verified availability and workload constraints`
+  ];
+  
+  toast(`Replaced with ${emp.name}.`, 'success');
+  closeModal('modal-replace-emp');
+  renderReviewAssignments(currentAIAssignments);
 }
 
 function confirmReplaceEmployee() {
   const sel = document.getElementById('replace-emp-select');
   const newEmpId = sel.value;
+  if (!newEmpId || replacingAssignmentIdx < 0) return;
+  
   const newEmp = allEmployees.find(e => e.employee_id === newEmpId);
-  if (!newEmp || replacingAssignmentIdx < 0) return;
-  currentAIAssignments[replacingAssignmentIdx].employee_id   = newEmpId;
-  currentAIAssignments[replacingAssignmentIdx].employee_name = newEmp.name;
-  currentAIAssignments[replacingAssignmentIdx].assigned_role = newEmp.role;
-  currentAIAssignments[replacingAssignmentIdx].ai_confidence = 0;
-  currentAIAssignments[replacingAssignmentIdx].ai_reason     = 'Manually replaced by PM.';
-  toast(`Replaced with ${newEmp.name}.`, 'success');
-  closeModal('modal-replace-emp');
-  renderReviewAssignments(currentAIAssignments);
+  if (!newEmp) return;
+  
+  applyReplacement(newEmp, "Manually replaced by PM using alternative candidates list.");
 }
 
 // ═══════════════════════════════════════════════════

@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, send_from_directory, session
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import db
-from ai_project_manager import run_analysis
+from ai_project_manager import run_analysis, ask_ai
 
 load_dotenv()
 
@@ -1659,6 +1659,137 @@ def api_save_assignments(id):
     db.update("projects", id, {"ai_plan": ai_plan, "workflow_status": "pm_reviewing"})
     db.log_action("PROJECT_ASSIGNMENTS_SAVED", f"PM reviewed and saved assignments for project '{proj['project_name']}'.", session.get("email"))
     return jsonify({"success": True, "saved": len(assignments)})
+
+@app.route("/api/projects/<id>/recommend-replacement", methods=["POST"])
+def api_recommend_replacement(id):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+        
+    body = request.get_json(force=True)
+    replacing_emp_id = body.get("employee_id")
+    team_id = body.get("team_id")
+    assigned_ids = body.get("assigned_ids", [])
+    
+    # 1. Fetch team to find required skills
+    team = db.get_by_id("teams", team_id) if team_id else None
+    required_skills = team.get("required_skills", "") if team else ""
+    
+    # 2. Find available candidates (excluding assigned employees and the one being replaced)
+    employees = db.get_all("employees")
+    available = [
+        e for e in employees 
+        if e["employee_id"] not in assigned_ids and e["employee_id"] != replacing_emp_id
+    ]
+    
+    if not available:
+        return jsonify({"error": "No other available employees in the organization."}), 400
+        
+    # 3. Score them using our 5-factor scoring engine
+    scored = _score_employees_for_role(available, required_skills)
+    
+    # Take top 5 candidates to show/send to Groq
+    top_candidates = scored[:5]
+    
+    # Format candidates list for Groq
+    candidates_info = []
+    for s in top_candidates:
+        c = s["employee"]
+        candidates_info.append({
+            "employee_id": c["employee_id"],
+            "name": c["name"],
+            "role": c.get("role", ""),
+            "skills": c.get("skills", ""),
+            "experience": c.get("experience", 1),
+            "performance_score": c.get("performance_score", 85.0),
+            "current_workload": c.get("current_workload", 0),
+            "confidence_score": f"{s['confidence']}%"
+        })
+        
+    # 4. Prompt Groq for recommendation
+    prompt = f"""
+We need to replace an employee in the following project team.
+Team/Module: {team.get('team_name', '') if team else ''}
+Required Skills: {required_skills}
+
+Here are the top available candidate employees:
+{json.dumps(candidates_info, indent=2)}
+
+Please select the best candidate from the list to replace the employee.
+Respond strictly in valid JSON format matching this schema:
+{{
+  "recommended_employee_id": "the employee_id of the chosen candidate",
+  "ai_reason": "a professional, concise 2-3 sentence explanation of why they are the best fit, highlighting matching skills, experience, and availability."
+}}
+Do not include any markdown formatting, explanations or text outside the JSON block.
+"""
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+    
+    recommended_id = None
+    ai_reason = ""
+    
+    if GROQ_API_KEY:
+        try:
+            response_text = ask_ai(prompt, GROQ_API_KEY)
+            # Remove potential markdown formatting from JSON
+            if response_text.startswith("```"):
+                lines = response_text.splitlines()
+                if lines[0].startswith("```json"):
+                    response_text = "\n".join(lines[1:-1])
+                else:
+                    response_text = "\n".join(lines[1:-1])
+            result = json.loads(response_text.strip())
+            recommended_id = result.get("recommended_employee_id")
+            ai_reason = result.get("ai_reason")
+        except Exception as e:
+            print(f"[AssignIQ] AI Replacement recommendation failed: {e}")
+            
+    # Fallback to top scored candidate if Groq key is missing or failed
+    if not recommended_id or not any(c["employee_id"] == recommended_id for c in candidates_info):
+        top_s = top_candidates[0]
+        recommended_id = top_s["employee"]["employee_id"]
+        ai_reason = (
+            f"Recommended {top_s['employee']['name']} as the best fit based on {top_s['skill_match']}% "
+            f"skill match with module requirements, {top_s['employee'].get('experience', 1)} years of experience, "
+            f"and balanced workload ({100 - top_s['employee'].get('availability', 100)}%)."
+        )
+        
+    # Assemble response
+    recommended_emp = next(c["employee"] for c in top_candidates if c["employee"]["employee_id"] == recommended_id)
+    
+    # Return recommendation, reasoning, and full list of top candidates
+    formatted_candidates = []
+    for s in scored:
+        c = s["employee"]
+        formatted_candidates.append({
+            "employee_id": c["employee_id"],
+            "name": c["name"],
+            "role": c.get("role", ""),
+            "skills": c.get("skills", ""),
+            "experience": c.get("experience", 1),
+            "performance_score": c.get("performance_score", 85.0),
+            "current_workload": c.get("current_workload", 0),
+            "photo": c.get("photo", ""),
+            "confidence": s["confidence"]
+        })
+        
+    return jsonify({
+        "recommended_id": recommended_id,
+        "ai_reason": ai_reason,
+        "recommended_employee": {
+            "employee_id": recommended_emp["employee_id"],
+            "name": recommended_emp["name"],
+            "role": recommended_emp.get("role", ""),
+            "skills": recommended_emp.get("skills", ""),
+            "experience": recommended_emp.get("experience", 1),
+            "performance_score": recommended_emp.get("performance_score", 85.0),
+            "current_workload": recommended_emp.get("current_workload", 0),
+            "photo": recommended_emp.get("photo", "")
+        },
+        "candidates": formatted_candidates
+    })
 
 @app.route("/api/projects/<id>/submit-to-admin", methods=["POST"])
 def api_submit_to_admin(id):

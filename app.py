@@ -311,6 +311,7 @@ def api_projects():
         "assigned_pm": pm_id or None,
         "workflow_status": "pending_pm" if pm_id else "draft",
         "status": "planning",
+        "created_by": session["user_id"],
         "created_at": datetime.datetime.utcnow().isoformat() + "Z"
     }
     db.insert("projects", new_proj)
@@ -1222,13 +1223,20 @@ def api_pm_review(id):
         return jsonify({"error": "You are not assigned to this project"}), 403
     new_status = "pm_approved" if action == "approve" else "changes_requested"
     updated = db.update("projects", id, {"workflow_status": new_status, "pm_comment": comment})
+    
+    # Notify all Admins
+    for u in db.get_all("users"):
+        if u["role"] == "admin":
+            if action == "approve":
+                db.add_notification(u["id"], "Project Approved by PM",
+                    f"'{proj['project_name']}' approved. PM is now defining modules.", "success")
+            else:
+                db.add_notification(u["id"], "PM Requested Changes",
+                    f"PM requested changes for '{proj['project_name']}': {comment}", "warning")
+                    
     if action == "approve":
-        db.add_notification(proj.get("created_by", session["user_id"]),
-            "Project Approved by PM", f"'{proj['project_name']}' approved. PM is now defining modules.", "success")
         db.log_action("PROJECT_PM_APPROVED", f"PM approved '{proj['project_name']}'.", session.get("email"))
     else:
-        db.add_notification(proj.get("created_by", session["user_id"]),
-            "PM Requested Changes", f"PM requested changes for '{proj['project_name']}': {comment}", "warning")
         db.log_action("PROJECT_CHANGES_REQUESTED", f"PM requested changes for '{proj['project_name']}'.", session.get("email"))
     return jsonify(updated)
 

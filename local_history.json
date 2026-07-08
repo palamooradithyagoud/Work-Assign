@@ -1,0 +1,276 @@
+[
+  {
+    "id": "bee960ee-7281-4492-a6b8-409c4e1843ab",
+    "created_at": "2026-07-08T05:28:09.135406Z",
+    "user_id": "00000000-0000-0000-0000-000000000000",
+    "user_email": "local@localhost",
+    "project_name": "Smart Home Analytics",
+    "result": {
+      "project_overview": "The Smart Home Analytics project aims to develop an intelligent system for analyzing and optimizing home energy consumption. The system will utilize machine learning algorithms and IoT sensors to provide personalized recommendations for energy efficiency. The project requires a multidisciplinary team with expertise in AI, data science, and software development.",
+      "required_skills": [
+        "Python",
+        "Machine Learning",
+        "Data Analysis",
+        "IoT",
+        "Cloud Computing"
+      ],
+      "recommended_roles": [
+        "AI Engineer",
+        "Data Scientist",
+        "Backend Developer",
+        "Frontend Developer",
+        "DevOps Engineer",
+        "QA Engineer",
+        "Project Manager"
+      ],
+      "team_composition": [
+        {
+          "role": "AI Engineer",
+          "count": 2,
+          "skills_required": [
+            "Python",
+            "Machine Learning",
+            "Deep Learning"
+          ],
+          "responsibility": "Develop and train machine learning models for energy consumption analysis"
+        },
+        {
+          "role": "Data Scientist",
+          "count": 1,
+          "skills_required": [
+            "Data Analysis",
+            "Statistics",
+            "Data Visualization"
+          ],
+          "responsibility": "Analyze and interpret data from IoT sensors and other sources"
+        },
+        {
+          "role": "Backend Developer",
+          "count": 1,
+          "skills_required": [
+            "Python",
+            "Flask",
+            "API Design"
+          ],
+          "responsibility": "Develop backend APIs for data ingestion and processing"
+        },
+        {
+          "role": "Frontend Developer",
+          "count": 1,
+          "skills_required": [
+            "JavaScript",
+            "React",
+            "UI/UX"
+          ],
+          "responsibility": "Develop user interface and client-side logic for the smart home analytics dashboard"
+        },
+        {
+          "role": "DevOps Engineer",
+          "count": 1,
+          "skills_required": [
+            "Cloud Computing",
+            "Containerization",
+            "CI/CD"
+          ],
+          "responsibility": "Ensure smooth deployment and operation of the system"
+        },
+        {
+          "role": "QA Engineer",
+          "count": 1,
+          "skills_required": [
+            "Testing Frameworks",
+            "Automation Testing"
+          ],
+          "responsibility": "Develop and execute test cases for the system"
+        },
+        {
+          "role": "Project Manager",
+          "count": 1,
+          "skills_required": [
+            "Project Management",
+            "Agile Methodologies"
+          ],
+          "responsibility": "Oversee project planning, execution, and delivery"
+        }
+      ],
+      "team_size": {
+        "total": 8,
+        "breakdown": "2 AI Engineers + 1 Data Scientist + 1 Backend Developer + 1 Frontend Developer + 1 DevOps Engineer + 1 QA Engineer + 1 Project Manager",
+        "rationale": "Based on project scope and 6-month deadline"
+      },
+      "team_assignments": [
+        {
+          "role": "AI Engineer",
+          "assigned_to": "Aarav Sharma",
+          "reason": {
+            "skill_match": "90%",
+            "workload": "40%",
+            "experience": "4 years"
+          },
+          "confidence": "85%",
+          "summary": "Selected due to high skill alignment and balanced workload",
+          "alternative": {
+            "name": "Meera Nair",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 3 candidates"
+          ]
+        },
+        {
+          "role": "Data Scientist",
+          "assigned_to": "Riya Patel",
+          "reason": {
+            "skill_match": "85%",
+            "workload": "35%",
+            "experience": "3 years"
+          },
+          "confidence": "80%",
+          "summary": "Selected due to high skill alignment and balanced workload",
+          "alternative": {
+            "name": "Karthik Rao",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 2 candidates"
+          ]
+        }
+      ],
+      "tech_stack": [
+        {
+          "technology": "Python",
+          "category": "Backend",
+          "purpose": "Machine learning model development and data processing",
+          "version": "3.9"
+        },
+        {
+          "technology": "Flask",
+          "category": "Backend",
+          "purpose": "API design and development",
+          "version": "2.0"
+        },
+        {
+          "technology": "React",
+          "category": "Frontend",
+          "purpose": "User interface development",
+          "version": "17.0"
+        },
+        {
+          "technology": "MongoDB",
+          "category": "Database",
+          "purpose": "Data storage and retrieval",
+          "version": "4.4"
+        },
+        {
+          "technology": "Docker",
+          "category": "DevOps",
+          "purpose": "Containerization and deployment",
+          "version": "20.10"
+        }
+      ],
+      "estimated_duration": {
+        "total_days": 180,
+        "total_weeks": 26,
+        "per_phase": [
+          {
+            "phase": "Requirement Analysis",
+            "days": 10
+          },
+          {
+            "phase": "System Architecture",
+            "days": 15
+          },
+          {
+            "phase": "Development",
+            "days": 90
+          },
+          {
+            "phase": "Testing",
+            "days": 30
+          },
+          {
+            "phase": "Deployment",
+            "days": 15
+          }
+        ],
+        "summary": "Estimated 26 weeks for a team of 8 people"
+      },
+      "recommended_tools": [
+        {
+          "tool": "Jira",
+          "reason": "Project tracking and sprint management"
+        },
+        {
+          "tool": "Git",
+          "reason": "Version control and code management"
+        }
+      ],
+      "execution_plan": [
+        {
+          "phase": "Requirement Analysis",
+          "estimated_days": 10,
+          "tasks": [
+            "Stakeholder interviews",
+            "Define user stories",
+            "Create requirement document"
+          ]
+        },
+        {
+          "phase": "System Architecture",
+          "estimated_days": 15,
+          "tasks": [
+            "Design system architecture",
+            "Create technical specification document"
+          ]
+        },
+        {
+          "phase": "Development",
+          "estimated_days": 90,
+          "tasks": [
+            "Develop machine learning models",
+            "Develop backend APIs",
+            "Develop frontend user interface"
+          ]
+        },
+        {
+          "phase": "Testing",
+          "estimated_days": 30,
+          "tasks": [
+            "Develop test cases",
+            "Execute test cases",
+            "Debug and fix issues"
+          ]
+        },
+        {
+          "phase": "Deployment",
+          "estimated_days": 15,
+          "tasks": [
+            "Deploy system to production environment",
+            "Configure monitoring and logging"
+          ]
+        }
+      ],
+      "timeline_summary": "Total: 26 weeks (180 days) with a team of 8",
+      "risk_analysis": [
+        {
+          "risk": "Insufficient data for machine learning model training",
+          "mitigation": "Collect and preprocess additional data"
+        },
+        {
+          "risk": "Technical debt due to rushed development",
+          "mitigation": "Prioritize refactoring and code review"
+        },
+        {
+          "risk": "Team member turnover or absence",
+          "mitigation": "Cross-train team members and maintain documentation"
+        }
+      ]
+    }
+  }
+]

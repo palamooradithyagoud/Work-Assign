@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — AssignIQ AI Workforce Management</title>
+  <meta name="description" content="Sign in to AssignIQ to optimize, plan, and orchestrate AI workloads and enterprise teams."/>
+  
+  <!-- FontAwesome & Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #09090b;
+      color: #fafafa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Grid background */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 1;
+      pointer-events: none;
+    }
+    /* Ambient Glowing Orbs */
+    .bg-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.15;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .bg-orb-1 {
+      width: 400px;
+      height: 400px;
+      background: #8b5cf6;
+      top: -100px;
+      left: -100px;
+    }
+    .bg-orb-2 {
+      width: 500px;
+      height: 500px;
+      background: #d946ef;
+      bottom: -150px;
+      right: -150px;
+    }
+    
+    .auth-container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 20px;
+    }
+    
+    .auth-logo {
+      margin-bottom: 28px; 
+      display: flex; 
+      align-items: center; 
+      gap: 12px; 
+      justify-content: center;
+    }
+    
+    .auth-logo i {
+      font-size: 36px;
+      background: linear-gradient(135deg, #8b5cf6, #d946ef);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .auth-logo .logo-text {
+      font-weight: 800;
+      font-size: 28px;
+      color: white;
+    }
+    
+    .auth-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(20, 20, 25, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 40px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.05);
+    }
+    
+    h1 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      text-align: center;
+      background: linear-gradient(135deg, #ffffff, #a1a1aa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .subtitle {
+      font-size: 13.5px;
+      color: #71717a;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #a78bfa;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 13px 16px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 14.5px;
+      transition: all 0.2s ease;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #8b5cf6;
+      background: rgba(0, 0, 0, 0.5);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+    
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #8b5cf6, #d946ef);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.25);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(139, 92, 246, 0.4);
+      opacity: 0.95;
+    }
+    
+    .btn-primary:active {
+      transform: translateY(1px);
+    }
+    
+    .auth-footer {
+      text-align: center;
+      font-size: 13px;
+      color: #71717a;
+      margin-top: 24px;
+    }
+    
+    .auth-footer a {
+      color: #a78bfa;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Alert styling */
+    .alert {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+    .alert.show {
+      display: block;
+    }
+    .alert-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+    .alert-success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+    
+    /* Demo login quick access styles */
+    .demo-helpers-container {
+      margin-top: 25px; 
+      border-top: 1px solid rgba(255, 255, 255, 0.08); 
+      padding-top: 20px;
+    }
+    
+    .demo-helpers-container p {
+      font-size: 11px; 
+      font-weight: 700; 
+      text-transform: uppercase; 
+      color: #a78bfa; 
+      letter-spacing: 0.8px; 
+      margin-bottom: 12px; 
+      text-align: center;
+    }
+    
+    .demo-login-btn {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      color: #e4e4e7;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+      margin-bottom: 8px;
+    }
+    
+    .demo-login-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    
+    .demo-login-btn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <div class="auth-container">
+    <div class="auth-logo">
+      <i class="fa-solid fa-brain-circuit"></i>
+      <div class="logo-text">Assign<span style="color: #a78bfa;">IQ</span></div>
+    </div>
+
+    <div class="auth-card">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your enterprise account to continue</p>
+
+      <div class="alert" id="auth-alert"></div>
+
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="email"><i class="fa-regular fa-envelope"></i> Email Address</label>
+          <input type="email" id="email" placeholder="you@assigniq.com" autocomplete="email" required/>
+        </div>
+
+        <div class="form-group">
+          <label for="password"><i class="fa-solid fa-lock"></i> Password</label>
+          <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required/>
+        </div>
+
+        <button class="btn-primary" type="submit" id="login-btn">
+          <span id="login-txt">Sign In</span>
+          <div class="spinner" id="login-spinner" style="display:none"></div>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="/signup">Create one →</a>
+      </div>
+
+      <!-- Quick Demo Login Helpers -->
+      <div class="demo-helpers-container">
+        <p>Quick Demo Credentials</p>
+        
+        <div style="display: flex; flex-direction: column;">
+          <!-- Admin helper -->
+          <button type="button" class="demo-login-btn" onclick="quickFill('admin@assigniq.com', 'admin123')">
+            <i class="fa-solid fa-user-shield" style="color: #a78bfa; font-size: 14px; width: 18px; text-align: center;"></i>
+            <div style="flex:1">
+              <div style="font-weight: 600; font-size: 12.5px;">System Administrator</div>
+              <div style="font-size: 11px; color: #94a3b8;">admin@assigniq.com</div>
+            </div>
+            <i class="fa-solid fa-arrow-right-to-bracket" style="color: #a78bfa; opacity: 0.6;"></i>
+          </button>
+          
+          <!-- PM helper -->
+          <button type="button" class="demo-login-btn" onclick="quickFill('manager@assigniq.com', 'manager123')">
+            <i class="fa-solid fa-user-tie" style="color: #f472b6; font-size: 14px; width: 18px; text-align: center;"></i>
+            <div style="flex:1">
+              <div style="font-weight: 600; font-size: 12.5px;">Project Manager</div>
+              <div style="font-size: 11px; color: #94a3b8;">manager@assigniq.com</div>
+            </div>
+            <i class="fa-solid fa-arrow-right-to-bracket" style="color: #f472b6; opacity: 0.6;"></i>
+          </button>
+          
+          <!-- Employee helper -->
+          <button type="button" class="demo-login-btn" onclick="quickFill('employee@assigniq.com', 'employee123')">
+            <i class="fa-solid fa-laptop-code" style="color: #34d399; font-size: 14px; width: 18px; text-align: center;"></i>
+            <div style="flex:1">
+              <div style="font-weight: 600; font-size: 12.5px;">Meera Nair (Employee)</div>
+              <div style="font-size: 11px; color: #94a3b8;">employee@assigniq.com</div>
+            </div>
+            <i class="fa-solid fa-arrow-right-to-bracket" style="color: #34d399; opacity: 0.6;"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="/static/auth.js"></script>
+  <script>
+    (async () => { await requireGuest(); })();
+
+    // Fill credentials and submit automatically
+    function quickFill(email, password) {
+      document.getElementById("email").value = email;
+      document.getElementById("password").value = password;
+      document.getElementById("login-form").dispatchEvent(new Event("submit"));
+    }
+
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const btn      = document.getElementById("login-btn");
+      const txt      = document.getElementById("login-txt");
+      const spin     = document.getElementById("login-spinner");
+      const alert    = document.getElementById("auth-alert");
+
+      if (!email || !password) {
+        alert.textContent = "Please fill in all fields.";
+        alert.className = "alert alert-error show";
+        return;
+      }
+
+      btn.disabled = true;
+      txt.textContent = "Signing in...";
+      if (spin) spin.style.display = "block";
+      alert.className = "alert";
+
+      const { data, error } = await signIn(email, password);
+
+      if (error) {
+        alert.textContent = error.message;
+        alert.className = "alert alert-error show";
+        btn.disabled = false;
+        txt.textContent = "Sign In";
+        if (spin) spin.style.display = "none";
+      } else {
+        alert.textContent = "Success! Redirecting...";
+        alert.className = "alert alert-success show";
+        setTimeout(() => { window.location.href = "/"; }, 800);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+[
+  {
+    "id": "task-1",
+    "project_id": "proj-1",
+    "task_name": "Setup CloudFormation & Terraform templates",
+    "description": "Draft infrastructural definitions for ECS clusters, VPC networks, S3 buckets, and RDS instances.",
+    "assigned_to": "emp-user-rahul",
+    "priority": "high",
+    "deadline": "2026-07-20",
+    "estimated_hours": 30,
+    "status": "In Progress",
+    "created_at": "2026-07-05T00:00:00Z",
+    "comments": [
+      {
+        "user_name": "Rahul Sharma",
+        "text": "Terraform VPC structure completed. Working on ECS policy definitions now.",
+        "created_at": "2026-07-07T14:30:00Z"
+      }
+    ]
+  },
+  {
+    "id": "task-2",
+    "project_id": "proj-1",
+    "task_name": "Develop REST APIs in Python FastAPI",
+    "description": "Rewrite legacy monolith handlers into lightweight, decoupled Python FastAPI handlers.",
+    "assigned_to": "employee-id-333",
+    "priority": "medium",
+    "deadline": "2026-08-05",
+    "estimated_hours": 45,
+    "status": "To Do",
+    "created_at": "2026-07-06T00:00:00Z",
+    "comments": []
+  },
+  {
+    "id": "task-3",
+    "project_id": "proj-3",
+    "task_name": "Train Vector Store embeddings on HR documents",
+    "description": "Parse employee guidelines PDFs and push vectors into Supabase Vector Store utilizing OpenAI or sentence-transformers embeddings.",
+    "assigned_to": "emp-3",
+    "priority": "critical",
+    "deadline": "2026-05-30",
+    "estimated_hours": 24,
+    "status": "Completed",
+    "created_at": "2026-05-15T00:00:00Z",
+    "comments": []
+  }
+]

@@ -1,0 +1,127 @@
+[
+  {
+    "id": "employee-id-333",
+    "full_name": "Meera Nair",
+    "email": "employee@assigniq.com",
+    "photo": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150",
+    "department": "Engineering",
+    "skills": [
+      "React",
+      "JavaScript",
+      "TypeScript",
+      "HTML5",
+      "CSS3",
+      "Redux",
+      "Vite"
+    ],
+    "experience": 5,
+    "availability_percent": 80,
+    "workload": 40,
+    "completed_projects": 12,
+    "performance_score": 92,
+    "certifications": [
+      "AWS Certified Cloud Practitioner",
+      "Scrum Alliance Developer"
+    ],
+    "created_at": "2026-07-08T00:00:00Z"
+  },
+  {
+    "id": "emp-user-rahul",
+    "full_name": "Rahul Sharma",
+    "email": "rahul@assigniq.com",
+    "photo": "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150",
+    "department": "Infrastructure",
+    "skills": [
+      "Docker",
+      "Kubernetes",
+      "AWS",
+      "Terraform",
+      "CI/CD",
+      "Python",
+      "Linux"
+    ],
+    "experience": 6,
+    "availability_percent": 100,
+    "workload": 20,
+    "completed_projects": 18,
+    "performance_score": 88,
+    "certifications": [
+      "AWS Solutions Architect Associate",
+      "CKA (Certified Kubernetes Admin)"
+    ],
+    "created_at": "2026-07-08T00:00:00Z"
+  },
+  {
+    "id": "emp-3",
+    "full_name": "Ananya Roy",
+    "email": "ananya@assigniq.com",
+    "photo": "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150",
+    "department": "Data Science",
+    "skills": [
+      "Python",
+      "SQL",
+      "Pandas",
+      "Scikit-Learn",
+      "PyTorch",
+      "Tableau",
+      "Git"
+    ],
+    "experience": 4,
+    "availability_percent": 60,
+    "workload": 60,
+    "completed_projects": 8,
+    "performance_score": 95,
+    "certifications": [
+      "Google Data Analytics Professional Certificate"
+    ],
+    "created_at": "2026-07-08T00:00:00Z"
+  },
+  {
+    "id": "emp-4",
+    "full_name": "Vikram Malhotra",
+    "email": "vikram@assigniq.com",
+    "photo": "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150",
+    "department": "Product Management",
+    "skills": [
+      "Jira",
+      "Agile",
+      "Scrum",
+      "Product Roadmap",
+      "SQL",
+      "User Analytics"
+    ],
+    "experience": 8,
+    "availability_percent": 90,
+    "workload": 30,
+    "completed_projects": 22,
+    "performance_score": 90,
+    "certifications": [
+      "Certified Product Manager (AIPMM)",
+      "PMP"
+    ],
+    "created_at": "2026-07-08T00:00:00Z"
+  },
+  {
+    "id": "emp-5",
+    "full_name": "Priya Gupta",
+    "email": "priya@assigniq.com",
+    "photo": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150",
+    "department": "Design",
+    "skills": [
+      "Figma",
+      "UI/UX Design",
+      "Wireframing",
+      "Prototyping",
+      "Illustrator"
+    ],
+    "experience": 3,
+    "availability_percent": 100,
+    "workload": 10,
+    "completed_projects": 6,
+    "performance_score": 85,
+    "certifications": [
+      "Google UX Design Certificate"
+    ],
+    "created_at": "2026-07-08T00:00:00Z"
+  }
+]

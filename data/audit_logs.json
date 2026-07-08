@@ -1,0 +1,51 @@
+[
+  {
+    "id": "d315dbac-ae92-47c0-a86e-8cfebabac1c0",
+    "action": "AI_PLAN_GENERATED",
+    "details": "AI generated project plan for 'E-Commerce Cloud Migration' (Llama-3.3).",
+    "user_email": "manager@assigniq.com",
+    "created_at": "2026-07-08T05:41:42.789019Z"
+  },
+  {
+    "id": "22cf2d98-f094-4690-a0b5-837397061902",
+    "action": "PROJECTS_UPDATED",
+    "details": "Updated item proj-1 in projects",
+    "user_email": "system@assigniq.com",
+    "created_at": "2026-07-08T05:41:42.786789Z"
+  },
+  {
+    "id": "d4f990a1-9700-4df8-aecb-cda9c333d07b",
+    "action": "EMPLOYEES_IMPORTED",
+    "details": "Imported 0 employee profiles from CSV.",
+    "user_email": "manager@assigniq.com",
+    "created_at": "2026-07-08T05:40:50.524822Z"
+  },
+  {
+    "id": "6a00930a-46ac-4f76-9186-29429179cbb0",
+    "action": "EMPLOYEES_IMPORTED",
+    "details": "Imported 0 employee profiles from CSV.",
+    "user_email": "manager@assigniq.com",
+    "created_at": "2026-07-08T05:40:46.656195Z"
+  },
+  {
+    "id": "df81353c-27e5-45ec-9a14-c8493f154b37",
+    "action": "EMPLOYEES_IMPORTED",
+    "details": "Imported 0 employee profiles from CSV.",
+    "user_email": "manager@assigniq.com",
+    "created_at": "2026-07-08T05:40:30.187821Z"
+  },
+  {
+    "id": "69725294-c5dc-42b7-b85d-ab5e5156d2d6",
+    "action": "USER_LOGIN",
+    "details": "User manager@assigniq.com logged in successfully.",
+    "user_email": "manager@assigniq.com",
+    "created_at": "2026-07-08T05:33:39.714041Z"
+  },
+  {
+    "id": "8e4ea0bb-1554-4da5-9855-15f75c514f93",
+    "action": "USER_LOGIN",
+    "details": "User admin@assigniq.com logged in successfully.",
+    "user_email": "admin@assigniq.com",
+    "created_at": "2026-07-08T05:32:48.411062Z"
+  }
+]

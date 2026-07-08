@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up — AI Project Manager</title>
+  <meta name="description" content="Create your AI Project Manager account to start analyzing and planning projects."/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon">🧠</div>
+      <div class="logo-text">AI Project Manager</div>
+    </div>
+
+    <div class="auth-card">
+      <h1>Create your account</h1>
+      <p class="subtitle">Start managing projects with AI-powered insights</p>
+
+      <div class="alert" id="auth-alert"></div>
+
+      <form id="signup-form" novalidate>
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" placeholder="you@company.com" autocomplete="email" required/>
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password" required/>
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" placeholder="Repeat your password" autocomplete="new-password" required/>
+        </div>
+
+        <button class="btn btn-primary" type="submit" id="signup-btn">
+          <span id="signup-txt">Create Account</span>
+          <div class="spinner" id="signup-spinner" style="display:none"></div>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="/login">Sign in →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/auth.js"></script>
+  <script>
+    (async () => { await requireGuest(); })();
+
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const confirm  = document.getElementById("confirm-password").value;
+      const btn      = document.getElementById("signup-btn");
+      const txt      = document.getElementById("signup-txt");
+      const spin     = document.getElementById("signup-spinner");
+      const alert    = document.getElementById("auth-alert");
+
+      alert.className = "alert";
+
+      if (!email || !password || !confirm) {
+        alert.textContent = "Please fill in all fields.";
+        alert.className = "alert alert-error show"; return;
+      }
+      if (password.length < 8) {
+        alert.textContent = "Password must be at least 8 characters.";
+        alert.className = "alert alert-error show"; return;
+      }
+      if (password !== confirm) {
+        alert.textContent = "Passwords do not match.";
+        alert.className = "alert alert-error show"; return;
+      }
+
+      btn.disabled = true;
+      txt.textContent = "Creating account…";
+      spin.style.display = "block";
+
+      const { data, error } = await signUp(email, password);
+
+      if (error) {
+        alert.textContent = error.message;
+        alert.className = "alert alert-error show";
+        btn.disabled = false;
+        txt.textContent = "Create Account";
+        spin.style.display = "none";
+      } else {
+        alert.textContent = "✅ Account created! Check your email to confirm, then sign in.";
+        alert.className = "alert alert-success show";
+        document.getElementById("signup-form").style.display = "none";
+        setTimeout(() => { window.location.href = "/login"; }, 3000);
+      }
+    });
+  </script>
+</body>
+</html>

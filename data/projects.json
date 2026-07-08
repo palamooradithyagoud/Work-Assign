@@ -1,0 +1,374 @@
+[
+  {
+    "id": "proj-1",
+    "name": "E-Commerce Cloud Migration",
+    "description": "Migrate core digital commerce storefront and legacy database to a scalable cloud serverless microservices setup on AWS.",
+    "deadline": "2026-10-15",
+    "priority": "critical",
+    "estimated_duration": "3 months",
+    "budget": "150,000",
+    "required_skills": [
+      "AWS",
+      "Terraform",
+      "CI/CD",
+      "Kubernetes",
+      "Docker",
+      "Python"
+    ],
+    "preferred_tech": "AWS, React, Python, Postgres",
+    "preferred_roles": [
+      "DevOps Engineer",
+      "Backend Developer",
+      "Cloud Architect"
+    ],
+    "team_size": 4,
+    "status": "active",
+    "created_at": "2026-07-01T10:00:00Z",
+    "ai_plan": {
+      "project_overview": "The E-Commerce Cloud Migration project aims to migrate a core digital commerce storefront and legacy database to a scalable cloud serverless microservices setup on AWS. The project requires a team with expertise in cloud architecture, backend development, and DevOps. The project is expected to be completed within 3 months.",
+      "required_skills": [
+        "AWS",
+        "React",
+        "Python",
+        "Postgres",
+        "Cloud Architecture",
+        "Serverless",
+        "Microservices"
+      ],
+      "recommended_roles": [
+        "Cloud Architect",
+        "Backend Developer",
+        "DevOps Engineer",
+        "QA Engineer"
+      ],
+      "team_composition": [
+        {
+          "role": "Cloud Architect",
+          "count": 1,
+          "skills_required": [
+            "AWS",
+            "Cloud Architecture",
+            "Serverless",
+            "Microservices"
+          ],
+          "responsibility": "Design and implement cloud architecture"
+        },
+        {
+          "role": "Backend Developer",
+          "count": 1,
+          "skills_required": [
+            "Python",
+            "Postgres"
+          ],
+          "responsibility": "Develop backend services"
+        },
+        {
+          "role": "DevOps Engineer",
+          "count": 1,
+          "skills_required": [
+            "AWS",
+            "DevOps",
+            "CI/CD"
+          ],
+          "responsibility": "Ensure smooth deployment and operation"
+        },
+        {
+          "role": "QA Engineer",
+          "count": 1,
+          "skills_required": [
+            "Testing",
+            "QA"
+          ],
+          "responsibility": "Ensure quality of the system"
+        }
+      ],
+      "team_size": {
+        "total": 4,
+        "breakdown": "1 Cloud Architect + 1 Backend Developer + 1 DevOps Engineer + 1 QA Engineer",
+        "rationale": "Based on project scope and 3-month deadline"
+      },
+      "team_assignments": [
+        {
+          "role": "Cloud Architect",
+          "assigned_to": "Rahul Sharma",
+          "reason": {
+            "skill_match": "80%",
+            "workload": "20%",
+            "experience": "6 years"
+          },
+          "confidence": "85%",
+          "summary": "Selected due to high skill alignment and low workload",
+          "alternative": {
+            "name": "Vikram Malhotra",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 2 candidates"
+          ]
+        },
+        {
+          "role": "Backend Developer",
+          "assigned_to": "Ananya Roy",
+          "reason": {
+            "skill_match": "70%",
+            "workload": "60%",
+            "experience": "4 years"
+          },
+          "confidence": "80%",
+          "summary": "Selected due to moderate skill alignment and balanced workload",
+          "alternative": {
+            "name": "Meera Nair",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 2 candidates"
+          ]
+        },
+        {
+          "role": "DevOps Engineer",
+          "assigned_to": "Rahul Sharma",
+          "reason": {
+            "skill_match": "90%",
+            "workload": "20%",
+            "experience": "6 years"
+          },
+          "confidence": "90%",
+          "summary": "Selected due to high skill alignment and low workload",
+          "alternative": {
+            "name": "Vikram Malhotra",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 2 candidates"
+          ]
+        },
+        {
+          "role": "QA Engineer",
+          "assigned_to": "Priya Gupta",
+          "reason": {
+            "skill_match": "60%",
+            "workload": "10%",
+            "experience": "3 years"
+          },
+          "confidence": "75%",
+          "summary": "Selected due to moderate skill alignment and low workload",
+          "alternative": {
+            "name": "Meera Nair",
+            "reason_not_selected": "Lower confidence due to reduced skill match and higher workload"
+          },
+          "decision_trace": [
+            "Skill match calculated using exact and mapped skills",
+            "Workload evaluated without modification",
+            "Confidence computed using weighted scoring",
+            "Ranked #1 among 2 candidates"
+          ]
+        }
+      ],
+      "tech_stack": [
+        {
+          "technology": "React",
+          "category": "Frontend",
+          "purpose": "User interface development",
+          "version": "18.x"
+        },
+        {
+          "technology": "Python",
+          "category": "Backend",
+          "purpose": "Backend services development",
+          "version": "3.9"
+        },
+        {
+          "technology": "Postgres",
+          "category": "Database",
+          "purpose": "Data storage and management",
+          "version": "13.4"
+        },
+        {
+          "technology": "AWS",
+          "category": "Cloud",
+          "purpose": "Cloud infrastructure and services",
+          "version": "latest"
+        },
+        {
+          "technology": "Jenkins",
+          "category": "DevOps",
+          "purpose": "Continuous integration and deployment",
+          "version": "2.303"
+        },
+        {
+          "technology": "Pytest",
+          "category": "Testing",
+          "purpose": "Unit testing and integration testing",
+          "version": "6.2.5"
+        }
+      ],
+      "estimated_duration": {
+        "total_days": 90,
+        "total_weeks": 13,
+        "per_phase": [
+          {
+            "phase": "Requirement Analysis",
+            "days": 7
+          },
+          {
+            "phase": "System Architecture",
+            "days": 10
+          },
+          {
+            "phase": "Development",
+            "days": 50
+          },
+          {
+            "phase": "Testing",
+            "days": 15
+          },
+          {
+            "phase": "Deployment",
+            "days": 8
+          }
+        ],
+        "summary": "Estimated 13 weeks for a team of 4 people"
+      },
+      "recommended_tools": [
+        {
+          "tool": "Jira",
+          "reason": "Project tracking and sprint management"
+        },
+        {
+          "tool": "GitHub",
+          "reason": "Version control and code management"
+        },
+        {
+          "tool": "Jenkins",
+          "reason": "Continuous integration and deployment"
+        },
+        {
+          "tool": "Pytest",
+          "reason": "Unit testing and integration testing"
+        }
+      ],
+      "execution_plan": [
+        {
+          "phase": "Requirement Analysis",
+          "estimated_days": 7,
+          "tasks": [
+            "Stakeholder interviews",
+            "Define user stories",
+            "Create requirement document"
+          ]
+        },
+        {
+          "phase": "System Architecture",
+          "estimated_days": 10,
+          "tasks": [
+            "Design system architecture",
+            "Create architecture document",
+            "Review and finalize architecture"
+          ]
+        },
+        {
+          "phase": "Development",
+          "estimated_days": 50,
+          "tasks": [
+            "Develop frontend services",
+            "Develop backend services",
+            "Develop database schema",
+            "Integrate services"
+          ]
+        },
+        {
+          "phase": "Testing",
+          "estimated_days": 15,
+          "tasks": [
+            "Unit testing",
+            "Integration testing",
+            "System testing"
+          ]
+        },
+        {
+          "phase": "Deployment",
+          "estimated_days": 8,
+          "tasks": [
+            "Deploy to production environment",
+            "Configure and test deployment"
+          ]
+        }
+      ],
+      "timeline_summary": "Total: 13 weeks (90 days) with a team of 4",
+      "risk_analysis": [
+        {
+          "risk": "Insufficient skills",
+          "mitigation": "Provide training and support to team members"
+        },
+        {
+          "risk": "Inadequate testing",
+          "mitigation": "Increase testing scope and duration"
+        },
+        {
+          "risk": "Unrealistic deadlines",
+          "mitigation": "Adjust project timeline and scope as needed"
+        },
+        {
+          "risk": "Tool limitations",
+          "mitigation": "Evaluate and select alternative tools as needed"
+        }
+      ]
+    },
+    "updated_at": "2026-07-08T05:41:42.784043Z"
+  },
+  {
+    "id": "proj-2",
+    "name": "HR Dashboard Redesign",
+    "description": "Redesign corporate internal employee workspace, profiles, skills assessments, and audit dashboard to feature modern UI components and charts.",
+    "deadline": "2026-09-01",
+    "priority": "medium",
+    "estimated_duration": "2 months",
+    "budget": "45,000",
+    "required_skills": [
+      "Figma",
+      "React",
+      "TypeScript",
+      "TailwindCSS"
+    ],
+    "preferred_tech": "Figma, React, TailwindCSS, Chart.js",
+    "preferred_roles": [
+      "UI/UX Designer",
+      "Frontend Developer"
+    ],
+    "team_size": 2,
+    "status": "planning",
+    "created_at": "2026-07-05T12:00:00Z"
+  },
+  {
+    "id": "proj-3",
+    "name": "Corporate AI Chatbot Integration",
+    "description": "Build and embed an AI chat agent trained on company policies using LLaMA models and RAG (Retrieval Augmented Generation).",
+    "deadline": "2026-08-10",
+    "priority": "high",
+    "estimated_duration": "1 month",
+    "budget": "60,000",
+    "required_skills": [
+      "Python",
+      "PyTorch",
+      "NLP",
+      "SQL"
+    ],
+    "preferred_tech": "Python, LangChain, Groq API, Supabase vector db",
+    "preferred_roles": [
+      "AI Engineer",
+      "Data Engineer"
+    ],
+    "team_size": 2,
+    "status": "completed",
+    "created_at": "2026-05-10T09:00:00Z"
+  }
+]

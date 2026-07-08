@@ -32,6 +32,53 @@ db.seed_database()
 # ──────────────────────────────────────────────
 # Serve Pages
 # ──────────────────────────────────────────────
+@app.route("/api/debug-db")
+def api_debug_db():
+    import traceback
+    url = os.getenv("DATABASE_URL", "postgresql://postgres:ADITHYAGOUD%40789@db.bpzpefonhzolyzqfhagn.supabase.co:5432/postgres")
+    masked_url = url
+    try:
+        if "@" in url:
+            parts = url.split("@")
+            prefix = parts[0]
+            if ":" in prefix:
+                user_part = prefix.split(":")[0] + ":****"
+                masked_url = user_part + "@" + parts[1]
+    except Exception:
+        pass
+
+    info = {
+        "status": "testing",
+        "database_url_configured": os.getenv("DATABASE_URL") is not None,
+        "masked_database_url": masked_url,
+        "environment": {
+            "VERCEL": os.environ.get("VERCEL"),
+            "FLASK_ENV": os.environ.get("FLASK_ENV")
+        }
+    }
+    
+    try:
+        conn = db.get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        version = cur.fetchone()[0]
+        
+        cur.execute("SELECT COUNT(*) FROM public.users;")
+        users_count = cur.fetchone()[0]
+        
+        cur.close()
+        conn.close()
+        
+        info["status"] = "success"
+        info["db_version"] = version
+        info["users_count"] = users_count
+    except Exception as e:
+        info["status"] = "failed"
+        info["error"] = str(e)
+        info["traceback"] = traceback.format_exc()
+        
+    return jsonify(info)
+
 @app.route("/")
 def index():
     return send_from_directory("templates", "index.html")

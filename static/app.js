@@ -94,7 +94,6 @@ function setupTopbar() {
     'view-admin-approvals': 'Approvals',
     'view-admin-employees': 'Employees',
     'view-admin-users': 'User Management',
-    'view-admin-audit': 'Audit Logs',
     'view-pm-dashboard': 'My Dashboard',
     'view-pm-projects': 'My Projects',
     'view-pm-workflow': 'Project Workflow',
@@ -144,7 +143,6 @@ async function loadViewData(viewId) {
     case 'view-admin-approvals':  await loadApprovals(); break;
     case 'view-admin-employees':  await loadAdminEmployees(); break;
     case 'view-admin-users':      await loadUsers(); break;
-    case 'view-admin-audit':      await loadAuditLogs('audit-tbody'); break;
     case 'view-audit-logs':       await loadAuditLogs('audit-tbody-pm'); break;
     case 'view-pm-dashboard':     await loadPMDashboard(); break;
     case 'view-pm-projects':      await loadPMProjects(); break;

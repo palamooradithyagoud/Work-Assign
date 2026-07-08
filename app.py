@@ -849,54 +849,55 @@ def api_predict_project(id):
 def api_tasks():
     if "user_id" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-        
+
+    if request.method == "POST":
+        # Allow admin, project_manager, and team_lead to create tasks
+        if session.get("role") not in ("admin", "project_manager", "team_lead"):
+            return jsonify({"error": "Forbidden"}), 403
+
+        body = request.get_json(force=True)
+        project_id = body.get("project_id", "").strip()
+        task_name = body.get("task_name", "").strip()
+
+        if not task_name:
+            return jsonify({"error": "Task Name is required"}), 400
+
+        new_task = {
+            "id": str(uuid.uuid4()),
+            "project_id": project_id or None,
+            "task_name": task_name,
+            "description": body.get("description", "").strip(),
+            "assigned_to": body.get("assigned_to") or None,
+            "priority": body.get("priority", "medium").lower(),
+            "deadline": body.get("deadline", ""),
+            "estimated_hours": int(body.get("estimated_hours", 4)),
+            "status": body.get("status", "To Do"),
+            "comments": [],
+            "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+        }
+        db.insert("tasks", new_task)
+
+        if new_task["assigned_to"]:
+            db.add_notification(
+                user_id=new_task["assigned_to"],
+                title="Sprint Assignment Dispatch",
+                message=f"You have been assigned task '{task_name}'.",
+                notif_type="info"
+            )
+        db.log_action("TASK_ASSIGNED", f"Assigned task '{task_name}' to {new_task['assigned_to'] or 'Unassigned'}.", session.get("email"))
+        return jsonify(new_task), 201
+
+    # GET
     project_id = request.args.get("project_id")
     tasks = db.get_all("tasks")
-    
+
     if project_id:
-        tasks = [t for t in tasks if t["project_id"] == project_id]
-        
+        tasks = [t for t in tasks if t.get("project_id") == project_id]
+
     if session.get("role") == "employee":
         tasks = [t for t in tasks if t.get("assigned_to") == session["user_id"]]
-        
-    return jsonify(tasks)
 
-@app.route("/api/tasks", methods=["POST"])
-def api_create_task():
-    if session.get("role") not in ("admin", "project_manager"):
-        return jsonify({"error": "Forbidden"}), 403
-        
-    body = request.get_json(force=True)
-    project_id = body.get("project_id")
-    task_name = body.get("task_name", "").strip()
-    
-    if not project_id or not task_name:
-        return jsonify({"error": "Project ID and Task Name are required"}), 400
-        
-    new_task = {
-        "id": str(uuid.uuid4()),
-        "project_id": project_id,
-        "task_name": task_name,
-        "description": body.get("description", "").strip(),
-        "assigned_to": body.get("assigned_to"),
-        "priority": body.get("priority", "medium").lower(),
-        "deadline": body.get("deadline", ""),
-        "estimated_hours": int(body.get("estimated_hours", 4)),
-        "status": "To Do",
-        "comments": [],
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
-    }
-    db.insert("tasks", new_task)
-    
-    if new_task["assigned_to"]:
-        db.add_notification(
-            user_id=new_task["assigned_to"],
-            title="Sprint Assignment Dispatch",
-            message=f"You have been assigned task '{task_name}'.",
-            notif_type="info"
-        )
-    db.log_action("TASK_ASSIGNED", f"Assigned task '{task_name}' to {new_task['assigned_to'] or 'Unassigned'}.", session.get("email"))
-    return jsonify(new_task)
+    return jsonify(tasks)
 
 @app.route("/api/tasks/<id>", methods=["PUT", "DELETE"])
 def api_task_detail(id):

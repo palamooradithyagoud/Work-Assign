@@ -1698,27 +1698,50 @@ async function createTask() {
   const assignTo = document.getElementById('task-assign-input').value;
   const priority = document.getElementById('task-priority-input').value;
   const deadline = document.getElementById('task-deadline-input').value;
-  const hours    = parseInt(document.getElementById('task-hours-input').value);
-  if (!name) { toast('Task name required.', 'warning'); return; }
-  // Find project_id from team
-  let projId = '';
+  const hours    = parseInt(document.getElementById('task-hours-input').value) || 4;
+  if (!name) { toast('Task name is required.', 'warning'); return; }
+
+  // Determine project_id: prefer currentProject, else fetch from team
+  let projId = currentProject?.project_id || '';
+  if (!projId && (currentUser.role === 'team_lead')) {
+    try {
+      const resp = await fetch('/api/teamlead/my-teams');
+      const teams = await resp.json();
+      if (teams.length) projId = teams[0].project_id || '';
+    } catch {}
+  }
+
   try {
-    const resp = await fetch('/api/teamlead/my-teams');
-    const teams = await resp.json();
-    if (teams.length) projId = teams[0].project_id;
-  } catch {}
-  try {
-    await fetch('/api/tasks', {
+    const resp = await fetch('/api/tasks', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        task_name: name, description: desc, assigned_to: assignTo,
-        priority, deadline, estimated_hours: hours, project_id: projId, status: 'To Do', comments: []
+        task_name: name, description: desc,
+        assigned_to: assignTo || null,
+        priority, deadline,
+        estimated_hours: hours,
+        project_id: projId,
+        status: 'To Do',
+        comments: []
       })
     });
-    toast('Task created!', 'success');
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      toast(err.error || 'Failed to create task.', 'error');
+      return;
+    }
+    toast('Task created successfully!', 'success');
     closeModal('modal-create-task');
-    loadTLTasks();
-  } catch(e) { console.error(e); }
+    // Reset form fields
+    ['task-name-input','task-desc-input'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
+    // Refresh the appropriate task view
+    if (currentUser.role === 'team_lead') loadTLTasks();
+    else if (currentProject) loadActiveSprintDashboard(currentProject.project_id);
+  } catch(e) {
+    console.error(e);
+    toast('Network error. Please try again.', 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2073,15 +2096,26 @@ function handleOverlayClick(e, id) {
 }
 
 async function populateTaskAssignees() {
+  const sel = document.getElementById('task-assign-input');
+  if (!sel) return;
   try {
-    const resp = await fetch('/api/teamlead/my-teams');
-    const teams = await resp.json();
+    // For team_lead: show team members. For PM/admin: show all employees
     let members = [];
-    teams.forEach(t => members.push(...(t.members || [])));
-    const sel = document.getElementById('task-assign-input');
+    if (currentUser.role === 'team_lead') {
+      const resp = await fetch('/api/teamlead/my-teams');
+      const teams = await resp.json();
+      teams.forEach(t => members.push(...(t.members || [])));
+    }
+    // Fallback to all employees if no team members found (PM/admin context)
+    if (!members.length) {
+      const resp = await fetch('/api/employees');
+      members = await resp.json();
+    }
     sel.innerHTML = `<option value="">— Unassigned —</option>` +
-      members.map(m => `<option value="${m.employee_id}">${esc(m.name||'?')}</option>`).join('');
-  } catch {}
+      members.map(m => `<option value="${m.employee_id || m.id}">${esc(m.name || m.full_name || '?')}</option>`).join('');
+  } catch {
+    sel.innerHTML = '<option value="">— Unassigned —</option>';
+  }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2136,7 +2170,11 @@ function wsBadgeClass(ws) {
     teams_forming:'ws-teams_forming', leads_pending:'ws-leads_pending',
     leads_approved:'ws-leads_approved', ai_assigned:'ws-ai_assigned',
     pm_reviewing:'ws-pm_reviewing', published:'ws-published', active:'ws-active',
-    completed:'ws-completed'
+    completed:'ws-completed',
+    awaiting_admin_approval: 'badge-amber',
+    rejected: 'badge-red',
+    approved: 'badge-green',
+    ai_planning: 'badge-purple'
   };
   return 'badge ' + (map[ws] || 'ws-draft');
 }
@@ -2148,9 +2186,13 @@ function wsLabel(ws) {
     teams_forming:'Teams Forming', leads_pending:'Leads Pending Approval',
     leads_approved:'Leads Approved', ai_assigned:'AI Assigned',
     pm_reviewing:'PM Reviewing', published:'Published', active:'Active',
-    completed:'Completed'
+    completed:'Completed',
+    awaiting_admin_approval: 'Awaiting Admin Approval',
+    rejected: 'Rejected',
+    approved: 'Approved',
+    ai_planning: 'AI Planning'
   };
-  return map[ws] || (ws || 'Draft');
+  return map[ws] || (ws ? ws.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Draft');
 }
 
 function timeAgo(isoStr) {

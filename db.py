@@ -69,15 +69,24 @@ def release_conn(conn):
 # ──────────────────────────────────────────────────────────────
 
 def _get_pk(table: str) -> str:
-    if table == "employees":
-        return "employee_id"
-    if table == "projects":
-        return "project_id"
-    if table == "tools":
-        return "tool_id"
-    if table == "project_history":
-        return "history_id"
-    return "id"
+    pk_map = {
+        "employees":       "employee_id",
+        "projects":        "project_id",
+        "tools":           "tool_id",
+        "project_history": "history_id",
+        "modules":         "module_id",
+        "teams":           "team_id",
+        "team_members":    "id",
+        "lead_approvals":  "id",
+        "comments":        "id",
+        "notifications":   "id",
+        "audit_logs":      "id",
+        "tasks":           "id",
+        "users":           "id",
+        "chats":           "id",
+        "files":           "id",
+    }
+    return pk_map.get(table, "id")
 
 
 def _execute(query: str, params=None, fetch: str = "none"):

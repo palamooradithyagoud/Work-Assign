@@ -1003,9 +1003,19 @@ def api_notifications():
 def api_read_notification(id):
     if "user_id" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-        
     db.update("notifications", id, {"is_read": True})
     return jsonify({"success": True})
+
+@app.route("/api/notifications/mark-read", methods=["POST"])
+def api_mark_all_notifications_read():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session["user_id"]
+    notifs = db.get_all("notifications")
+    user_notifs = [n for n in notifs if n["user_id"] == uid and not n.get("is_read")]
+    for n in user_notifs:
+        db.update("notifications", n["id"], {"is_read": True})
+    return jsonify({"success": True, "marked": len(user_notifs)})
 
 # ──────────────────────────────────────────────
 # AUDIT LOGS API
@@ -1123,6 +1133,685 @@ def api_metrics():
         }
     }
     return jsonify(metrics)
+
+
+# ══════════════════════════════════════════════════════════
+# ASSIGNIQ v2 — ENTERPRISE WORKFLOW API ROUTES
+# ══════════════════════════════════════════════════════════
+
+def _score_employees_for_role(employees, required_skills_str, exclude_ids=None):
+    """Enhanced AI scoring: skill match + experience + availability + performance."""
+    exclude_ids = exclude_ids or []
+    req_skills = [s.strip().lower() for s in required_skills_str.split(";") if s.strip()]
+    scored = []
+    for emp in employees:
+        if emp["employee_id"] in exclude_ids:
+            continue
+        emp_skills = [s.strip().lower() for s in (emp.get("skills") or "").split(";") if s.strip()]
+        if req_skills:
+            matching = [s for s in emp_skills if any(r in s or s in r for r in req_skills)]
+            skill_pct = round(len(matching) / len(req_skills) * 100, 1)
+        else:
+            skill_pct = 70.0
+        exp_pct    = min((emp.get("experience", 1) or 1) * 10, 100)
+        avail_pct  = emp.get("availability", 100) or 100
+        workload   = emp.get("current_workload", 0) or 0
+        perf       = emp.get("performance_score", 80) or 80
+        comp_proj  = min((emp.get("completed_projects", 0) or 0) * 5, 100)
+        confidence = (
+            skill_pct   * 0.35 +
+            exp_pct     * 0.20 +
+            (100 - workload) * 0.15 +
+            avail_pct   * 0.15 +
+            perf        * 0.10 +
+            comp_proj   * 0.05
+        )
+        scored.append({
+            "employee": emp,
+            "confidence": round(confidence, 1),
+            "skill_match": skill_pct,
+            "experience_pct": exp_pct,
+            "availability_pct": avail_pct,
+            "workload_pct": workload,
+            "performance": perf,
+            "matching_skills": [s for s in emp_skills if any(r in s or s in r for r in req_skills)]
+        })
+    scored.sort(key=lambda x: x["confidence"], reverse=True)
+    return scored
+
+
+# ─── User helpers ───────────────────────────────────────────────────────────
+@app.route("/api/users/project-managers", methods=["GET"])
+def api_get_pms():
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    users = db.get_all("users")
+    return jsonify([u for u in users if u["role"] == "project_manager"])
+
+@app.route("/api/users/team-leads", methods=["GET"])
+def api_get_tls():
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    users = db.get_all("users")
+    return jsonify([u for u in users if u["role"] == "team_lead"])
+
+# ─── Project Workflow ────────────────────────────────────────────────────────
+@app.route("/api/projects/<id>/assign-pm", methods=["POST"])
+def api_assign_pm(id):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    pm_id = body.get("pm_id", "").strip()
+    if not pm_id:
+        return jsonify({"error": "pm_id is required"}), 400
+    pm = db.get_by_id("users", pm_id)
+    if not pm or pm["role"] != "project_manager":
+        return jsonify({"error": "Invalid project manager"}), 400
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    updated = db.update("projects", id, {"assigned_pm": pm_id, "workflow_status": "pending_pm"})
+    db.add_notification(pm_id, "Project Assigned to You",
+        f"You have been assigned as Project Manager for '{proj['project_name']}'. Please review and approve.",
+        "info")
+    db.log_action("PM_ASSIGNED", f"PM '{pm['full_name']}' assigned to '{proj['project_name']}'.", session.get("email"))
+    return jsonify({"success": True, "pm": pm, "project": updated})
+
+@app.route("/api/projects/<id>/pm-review", methods=["POST"])
+def api_pm_review(id):
+    if session.get("role") != "project_manager":
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    action  = body.get("action")  # "approve" | "request_changes"
+    comment = body.get("comment", "").strip()
+    if action not in ("approve", "request_changes"):
+        return jsonify({"error": "action must be approve or request_changes"}), 400
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    if proj.get("assigned_pm") != session["user_id"]:
+        return jsonify({"error": "You are not assigned to this project"}), 403
+    new_status = "pm_approved" if action == "approve" else "changes_requested"
+    updated = db.update("projects", id, {"workflow_status": new_status, "pm_comment": comment})
+    if action == "approve":
+        db.add_notification(proj.get("created_by", "admin-id-111"),
+            "Project Approved by PM", f"'{proj['project_name']}' approved. PM is now defining modules.", "success")
+        db.log_action("PROJECT_PM_APPROVED", f"PM approved '{proj['project_name']}'.", session.get("email"))
+    else:
+        db.add_notification(proj.get("created_by", "admin-id-111"),
+            "PM Requested Changes", f"PM requested changes for '{proj['project_name']}': {comment}", "warning")
+        db.log_action("PROJECT_CHANGES_REQUESTED", f"PM requested changes for '{proj['project_name']}'.", session.get("email"))
+    return jsonify(updated)
+
+@app.route("/api/projects/<id>/workflow", methods=["GET"])
+def api_project_workflow(id):
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    modules  = [m for m in db.get_all("modules")  if m["project_id"] == id]
+    teams    = [t for t in db.get_all("teams")    if t["project_id"] == id]
+    members  = db.get_all("team_members")
+    approvals = [a for a in db.get_all("lead_approvals") if a["project_id"] == id]
+    team_ids = {t["team_id"] for t in teams}
+    team_members_map = {tid: [] for tid in team_ids}
+    for m in members:
+        if m["team_id"] in team_members_map:
+            team_members_map[m["team_id"]].append(m)
+    for t in teams:
+        t["members"] = team_members_map.get(t["team_id"], [])
+    pm_user = db.get_by_id("users", proj.get("assigned_pm", "")) if proj.get("assigned_pm") else None
+    return jsonify({
+        "project": proj,
+        "pm": pm_user,
+        "modules": modules,
+        "teams": teams,
+        "lead_approvals": approvals
+    })
+
+# ─── Modules ────────────────────────────────────────────────────────────────
+@app.route("/api/projects/<id>/modules", methods=["GET", "POST"])
+def api_project_modules(id):
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == "GET":
+        all_m = db.get_all("modules")
+        return jsonify([m for m in all_m if m["project_id"] == id])
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    if not body.get("module_name", "").strip():
+        return jsonify({"error": "module_name is required"}), 400
+    new_m = {
+        "module_id": f"MOD{random.randint(1000,9999)}",
+        "project_id": id,
+        "module_name": body["module_name"].strip(),
+        "description": body.get("description", ""),
+        "estimated_duration": body.get("estimated_duration", ""),
+        "required_skills": body.get("required_skills", ""),
+        "complexity": body.get("complexity", "Medium"),
+        "status": "planning",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    saved = db.insert("modules", new_m)
+    db.update("projects", id, {"workflow_status": "modules_defined"})
+    db.log_action("MODULE_CREATED", f"Module '{new_m['module_name']}' added to project {id}.", session.get("email"))
+    return jsonify(saved)
+
+@app.route("/api/modules/<mid>", methods=["PUT", "DELETE"])
+def api_module_detail(mid):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    if request.method == "DELETE":
+        db.delete("modules", mid)
+        return jsonify({"success": True})
+    body = request.get_json(force=True)
+    fields = ["module_name", "description", "estimated_duration", "required_skills", "complexity", "status"]
+    updates = {f: body[f] for f in fields if f in body}
+    return jsonify(db.update("modules", mid, updates))
+
+# ─── Teams ───────────────────────────────────────────────────────────────────
+@app.route("/api/projects/<id>/teams", methods=["GET", "POST"])
+def api_project_teams(id):
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == "GET":
+        all_t = db.get_all("teams")
+        teams = [t for t in all_t if t["project_id"] == id]
+        members = db.get_all("team_members")
+        for t in teams:
+            t["members"] = [m for m in members if m["team_id"] == t["team_id"]]
+        return jsonify(teams)
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    if not body.get("team_name", "").strip():
+        return jsonify({"error": "team_name is required"}), 400
+    new_t = {
+        "team_id": f"TEAM{random.randint(1000,9999)}",
+        "project_id": id,
+        "module_id": body.get("module_id", ""),
+        "team_name": body["team_name"].strip(),
+        "required_skills": body.get("required_skills", ""),
+        "team_size": int(body.get("team_size", 3)),
+        "team_lead_id": None,
+        "lead_approved": False,
+        "status": "forming",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    saved = db.insert("teams", new_t)
+    db.update("projects", id, {"workflow_status": "teams_forming"})
+    db.log_action("TEAM_CREATED", f"Team '{new_t['team_name']}' created for project {id}.", session.get("email"))
+    return jsonify(saved)
+
+@app.route("/api/teams/<tid>", methods=["GET", "PUT", "DELETE"])
+def api_team_detail(tid):
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == "GET":
+        team = db.get_by_id("teams", tid)
+        if not team:
+            return jsonify({"error": "Team not found"}), 404
+        members = [m for m in db.get_all("team_members") if m["team_id"] == tid]
+        team["members"] = members
+        return jsonify(team)
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    if request.method == "DELETE":
+        db.delete("teams", tid)
+        return jsonify({"success": True})
+    body = request.get_json(force=True)
+    fields = ["team_name", "module_id", "required_skills", "team_size", "status"]
+    updates = {f: body[f] for f in fields if f in body}
+    return jsonify(db.update("teams", tid, updates))
+
+# ─── Team Lead Selection & Admin Approval ────────────────────────────────────
+@app.route("/api/teams/<tid>/select-lead", methods=["POST"])
+def api_select_team_lead(tid):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    emp_id = body.get("employee_id", "").strip()
+    reason = body.get("reason", "")
+    confidence = float(body.get("confidence", 0))
+    alt_ids = body.get("alternative_ids", [])
+    if not emp_id:
+        return jsonify({"error": "employee_id is required"}), 400
+    team = db.get_by_id("teams", tid)
+    if not team:
+        return jsonify({"error": "Team not found"}), 404
+    emp  = db.get_by_id("employees", emp_id)
+    if not emp:
+        return jsonify({"error": "Employee not found"}), 404
+    proj = db.get_by_id("projects", team["project_id"])
+    approval = {
+        "id": str(uuid.uuid4()),
+        "team_id": tid,
+        "project_id": team["project_id"],
+        "team_name": team["team_name"],
+        "project_name": proj["project_name"] if proj else "",
+        "selected_employee_id": emp_id,
+        "requested_by": session["user_id"],
+        "status": "pending",
+        "ai_reason": reason,
+        "confidence_score": confidence,
+        "alternative_ids": alt_ids,
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    db.insert("lead_approvals", approval)
+    db.update("teams", tid, {"status": "lead_pending", "team_lead_id": emp_id})
+    db.update("projects", team["project_id"], {"workflow_status": "leads_pending"})
+    # Notify all admins
+    for u in db.get_all("users"):
+        if u["role"] == "admin":
+            db.add_notification(u["id"], "Team Lead Approval Required",
+                f"PM selected '{emp['name']}' as lead for '{team['team_name']}' on '{proj['project_name'] if proj else ''}'. Your approval is needed.",
+                "warning")
+    db.log_action("LEAD_SELECTED", f"'{emp['name']}' selected as lead for team '{team['team_name']}'.", session.get("email"))
+    return jsonify({"success": True, "approval_id": approval["id"]})
+
+@app.route("/api/lead-approvals", methods=["GET"])
+def api_lead_approvals_list():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    approvals = db.get_all("lead_approvals")
+    status_filter = request.args.get("status", "")
+    if status_filter:
+        approvals = [a for a in approvals if a["status"] == status_filter]
+    # Enrich with employee data
+    for a in approvals:
+        emp = db.get_by_id("employees", a.get("selected_employee_id", ""))
+        a["employee"] = emp
+        alts = []
+        for aid in (a.get("alternative_ids") or []):
+            ae = db.get_by_id("employees", aid)
+            if ae:
+                alts.append(ae)
+        a["alternatives"] = alts
+    approvals.sort(key=lambda x: x["created_at"], reverse=True)
+    return jsonify(approvals)
+
+@app.route("/api/lead-approvals/<aid>", methods=["GET"])
+def api_lead_approval_detail(aid):
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    approval = db.get_by_id("lead_approvals", aid)
+    if not approval:
+        return jsonify({"error": "Not found"}), 404
+    approval["employee"] = db.get_by_id("employees", approval.get("selected_employee_id", ""))
+    alts = []
+    for eid in (approval.get("alternative_ids") or []):
+        ae = db.get_by_id("employees", eid)
+        if ae:
+            alts.append(ae)
+    approval["alternatives"] = alts
+    approval["team"] = db.get_by_id("teams", approval.get("team_id", ""))
+    approval["project"] = db.get_by_id("projects", approval.get("project_id", ""))
+    return jsonify(approval)
+
+@app.route("/api/lead-approvals/<aid>/decide", methods=["POST"])
+def api_lead_approval_decide(aid):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    decision = body.get("decision")  # "approve" | "reject"
+    comment  = body.get("comment", "")
+    if decision not in ("approve", "reject"):
+        return jsonify({"error": "decision must be approve or reject"}), 400
+    approval = db.get_by_id("lead_approvals", aid)
+    if not approval:
+        return jsonify({"error": "Approval not found"}), 404
+    now = datetime.datetime.utcnow().isoformat() + "Z"
+    db.update("lead_approvals", aid, {"status": decision + "d", "admin_comment": comment, "decided_at": now})
+    team = db.get_by_id("teams", approval["team_id"])
+    proj = db.get_by_id("projects", approval["project_id"])
+    emp  = db.get_by_id("employees", approval["selected_employee_id"])
+    if decision == "approve":
+        db.update("teams", approval["team_id"], {"lead_approved": True, "status": "lead_approved"})
+        # Check if ALL teams for project have approved leads
+        all_teams = [t for t in db.get_all("teams") if t["project_id"] == approval["project_id"]]
+        all_approved = all(t.get("lead_approved") for t in all_teams)
+        if all_approved:
+            db.update("projects", approval["project_id"], {"workflow_status": "leads_approved"})
+        # Notify PM
+        pm_id = proj.get("assigned_pm") if proj else None
+        if pm_id:
+            db.add_notification(pm_id, "Team Lead Approved",
+                f"Admin approved '{emp['name']}' as Team Lead for '{team['team_name'] if team else ''}'.",
+                "success")
+        # Notify the Team Lead employee
+        if emp:
+            db.add_notification(approval["selected_employee_id"],
+                "You are now a Team Lead!",
+                f"You have been approved as Team Lead for '{team['team_name'] if team else ''}' on '{proj['project_name'] if proj else ''}'.",
+                "success")
+        db.log_action("LEAD_APPROVED", f"Admin approved '{emp['name'] if emp else '?'}' as lead.", session.get("email"))
+    else:
+        db.update("teams", approval["team_id"], {"status": "forming", "team_lead_id": None})
+        pm_id = proj.get("assigned_pm") if proj else None
+        if pm_id:
+            db.add_notification(pm_id, "Team Lead Rejected",
+                f"Admin rejected '{emp['name'] if emp else '?'}' as lead for '{team['team_name'] if team else ''}'. Comment: {comment}",
+                "error")
+        db.log_action("LEAD_REJECTED", f"Admin rejected lead for team '{team['team_name'] if team else '?'}'.", session.get("email"))
+    return jsonify({"success": True, "decision": decision})
+
+# ─── Score employees for lead selection display ──────────────────────────────
+@app.route("/api/teams/<tid>/score-employees", methods=["GET"])
+def api_score_employees_for_team(tid):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    team = db.get_by_id("teams", tid)
+    if not team:
+        return jsonify({"error": "Team not found"}), 404
+    employees = db.get_all("employees")
+    existing_members = [m["employee_id"] for m in db.get_all("team_members") if m["team_id"] == tid]
+    scored = _score_employees_for_role(employees, team.get("required_skills", ""), exclude_ids=existing_members)
+    results = []
+    for s in scored[:10]:
+        e = s["employee"]
+        results.append({
+            "employee_id": e["employee_id"],
+            "name": e["name"],
+            "role": e.get("role", ""),
+            "department": e.get("department", ""),
+            "experience": e.get("experience", 0),
+            "performance_score": e.get("performance_score", 0),
+            "completed_projects": e.get("completed_projects", 0),
+            "current_workload": e.get("current_workload", 0),
+            "skills": e.get("skills", ""),
+            "photo": e.get("photo", ""),
+            "confidence": s["confidence"],
+            "skill_match": s["skill_match"],
+            "matching_skills": s["matching_skills"],
+            "experience_pct": s["experience_pct"],
+            "availability_pct": s["availability_pct"]
+        })
+    return jsonify(results)
+
+# ─── AI Full-Team Assignment ─────────────────────────────────────────────────
+@app.route("/api/projects/<id>/ai-assign-all", methods=["POST"])
+def api_ai_assign_all(id):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    teams     = [t for t in db.get_all("teams") if t["project_id"] == id]
+    employees = db.get_all("employees")
+    existing_assigned = {m["employee_id"] for m in db.get_all("team_members")}
+    all_assignments = []
+    for team in teams:
+        if not team.get("lead_approved"):
+            continue
+        team_skills = team.get("required_skills", "") or proj.get("required_skills", "")
+        team_size   = int(team.get("team_size", 3))
+        # Exclude lead and already-assigned members
+        excl = set(existing_assigned)
+        if team.get("team_lead_id"):
+            excl.add(team["team_lead_id"])
+        scored = _score_employees_for_role(employees, team_skills, exclude_ids=list(excl))
+        slots = min(team_size - 1, len(scored))  # -1 for the lead
+        team_assignments = []
+        for i in range(slots):
+            s = scored[i]
+            e = s["employee"]
+            alt = scored[i + 1] if i + 1 < len(scored) else None
+            assignment_entry = {
+                "id": str(uuid.uuid4()),
+                "team_id": team["team_id"],
+                "employee_id": e["employee_id"],
+                "employee_name": e["name"],
+                "team_name": team["team_name"],
+                "assigned_role": e.get("role", "Team Member"),
+                "assigned_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "ai_confidence": s["confidence"],
+                "ai_reason": (
+                    f"Optimal candidate: {s['skill_match']}% skill match, "
+                    f"{e.get('experience', 1)} yrs experience, "
+                    f"{100 - e.get('current_workload', 0)}% availability."
+                ),
+                "is_lead": False,
+                "skill_match": s["skill_match"],
+                "experience_pct": s["experience_pct"],
+                "availability_pct": s["availability_pct"],
+                "performance": e.get("performance_score", 80),
+                "matching_skills": s["matching_skills"],
+                "decision_trace": [
+                    f"Required skills parsed: {team_skills}",
+                    f"Scored {len(employees)} candidates against {len(scored)} eligible.",
+                    f"Confidence: skill({s['skill_match']}%) × exp({s['experience_pct']}%) × avail({s['availability_pct']}%) × perf({e.get('performance_score',80)}%)",
+                    f"Selected {e['name']} with {s['confidence']}% overall confidence."
+                ],
+                "alternative": {
+                    "employee_id": alt["employee"]["employee_id"] if alt else None,
+                    "employee_name": alt["employee"]["name"] if alt else "None",
+                    "confidence": alt["confidence"] if alt else 0,
+                    "reason_not_selected": f"Lower composite score ({alt['confidence']}%)." if alt else ""
+                }
+            }
+            team_assignments.append(assignment_entry)
+            existing_assigned.add(e["employee_id"])
+        all_assignments.extend(team_assignments)
+    db.update("projects", id, {"workflow_status": "ai_assigned"})
+    db.log_action("AI_ASSIGNED_ALL", f"AI assigned {len(all_assignments)} employees across {len(teams)} teams.", session.get("email"))
+    return jsonify({"assignments": all_assignments, "total": len(all_assignments)})
+
+@app.route("/api/projects/<id>/save-assignments", methods=["POST"])
+def api_save_assignments(id):
+    """PM reviews and saves AI assignments to DB (team_members table)."""
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    assignments = body.get("assignments", [])
+    for a in assignments:
+        # Check if already exists (idempotent)
+        existing = [m for m in db.get_all("team_members")
+                    if m["team_id"] == a["team_id"] and m["employee_id"] == a["employee_id"]]
+        if not existing:
+            db.insert("team_members", {
+                "id": a.get("id", str(uuid.uuid4())),
+                "team_id": a["team_id"],
+                "employee_id": a["employee_id"],
+                "assigned_role": a.get("assigned_role", "Team Member"),
+                "assigned_at": a.get("assigned_at", datetime.datetime.utcnow().isoformat() + "Z"),
+                "ai_confidence": a.get("ai_confidence", 0),
+                "ai_reason": a.get("ai_reason", ""),
+                "is_lead": False
+            })
+    db.update("projects", id, {"workflow_status": "pm_reviewing"})
+    return jsonify({"success": True, "saved": len(assignments)})
+
+@app.route("/api/projects/<id>/publish", methods=["POST"])
+def api_publish_project(id):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+    db.update("projects", id, {"workflow_status": "active", "status": "active"})
+    teams   = [t for t in db.get_all("teams") if t["project_id"] == id]
+    members = db.get_all("team_members")
+    employees = {e["employee_id"]: e for e in db.get_all("employees")}
+    notified = 0
+    for team in teams:
+        team_members = [m for m in members if m["team_id"] == team["team_id"]]
+        lead_id = team.get("team_lead_id")
+        lead_emp = employees.get(lead_id, {})
+        lead_name = lead_emp.get("name", "Your Team Lead")
+        for m in team_members:
+            emp = employees.get(m["employee_id"])
+            if emp:
+                db.add_notification(m["employee_id"],
+                    f"You are assigned to {proj['project_name']}!",
+                    f"Role: {m.get('assigned_role','Team Member')} | Team: {team['team_name']} | Lead: {lead_name} | Project: {proj['project_name']}",
+                    "success")
+                notified += 1
+        # Notify lead too
+        if lead_id and lead_id in employees:
+            db.add_notification(lead_id, "Your team is ready!",
+                f"All members assigned to '{team['team_name']}' on '{proj['project_name']}'. Lead the team!",
+                "success")
+    # Notify admins
+    for u in db.get_all("users"):
+        if u["role"] == "admin":
+            db.add_notification(u["id"], "Project Published",
+                f"'{proj['project_name']}' is now active with teams and assignments published.", "success")
+    db.log_action("PROJECT_PUBLISHED", f"Project '{proj['project_name']}' published. {notified} employees notified.", session.get("email"))
+    return jsonify({"success": True, "notified": notified})
+
+# ─── Team Lead Dashboard ─────────────────────────────────────────────────────
+@app.route("/api/teamlead/dashboard", methods=["GET"])
+def api_tl_dashboard():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session["user_id"]
+    # Find teams where this user is the lead
+    all_teams = db.get_all("teams")
+    my_teams  = [t for t in all_teams if t.get("team_lead_id") == uid]
+    all_members = db.get_all("team_members")
+    all_tasks   = db.get_all("tasks")
+    all_emps    = {e["employee_id"]: e for e in db.get_all("employees")}
+    all_projs   = {p["project_id"]: p for p in db.get_all("projects")}
+    result = []
+    for team in my_teams:
+        members = [m for m in all_members if m["team_id"] == team["team_id"]]
+        member_details = []
+        for m in members:
+            emp = all_emps.get(m["employee_id"], {})
+            member_tasks = [t for t in all_tasks if t.get("assigned_to") == m["employee_id"]
+                           and t.get("project_id") == team["project_id"]]
+            member_details.append({
+                **emp,
+                "assigned_role": m.get("assigned_role"),
+                "pending_tasks": len([t for t in member_tasks if t["status"] != "Completed"]),
+                "completed_tasks": len([t for t in member_tasks if t["status"] == "Completed"])
+            })
+        proj = all_projs.get(team.get("project_id", ""), {})
+        result.append({
+            "team": team,
+            "project": proj,
+            "members": member_details,
+            "total_tasks": len([t for t in all_tasks if t.get("project_id") == team["project_id"]]),
+            "completed_tasks": len([t for t in all_tasks if t.get("project_id") == team["project_id"] and t["status"] == "Completed"])
+        })
+    return jsonify(result)
+
+@app.route("/api/teamlead/my-teams", methods=["GET"])
+def api_tl_my_teams():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session["user_id"]
+    all_teams = db.get_all("teams")
+    my_teams  = [t for t in all_teams if t.get("team_lead_id") == uid]
+    members   = db.get_all("team_members")
+    employees = {e["employee_id"]: e for e in db.get_all("employees")}
+    for team in my_teams:
+        tm = [m for m in members if m["team_id"] == team["team_id"]]
+        team["members"] = [{**employees.get(m["employee_id"], {}), **m} for m in tm]
+    return jsonify(my_teams)
+
+# ─── Employee Assignment View ────────────────────────────────────────────────
+@app.route("/api/employee/my-assignment", methods=["GET"])
+def api_emp_my_assignment():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    uid = session["user_id"]
+    members = db.get_all("team_members")
+    my_memberships = [m for m in members if m["employee_id"] == uid]
+    if not my_memberships:
+        return jsonify({"assignments": []})
+    result = []
+    all_teams = {t["team_id"]: t for t in db.get_all("teams")}
+    all_projs = {p["project_id"]: p for p in db.get_all("projects")}
+    all_mods  = {m["module_id"]: m for m in db.get_all("modules")}
+    for m in my_memberships:
+        team = all_teams.get(m["team_id"], {})
+        proj = all_projs.get(team.get("project_id", ""), {})
+        mod  = all_mods.get(team.get("module_id", ""), {})
+        lead_emp = None
+        if team.get("team_lead_id"):
+            lead_emp = db.get_by_id("employees", team["team_lead_id"])
+        result.append({
+            "membership": m,
+            "team": team,
+            "project": proj,
+            "module": mod,
+            "team_lead": lead_emp
+        })
+    return jsonify({"assignments": result})
+
+# ─── Comments ────────────────────────────────────────────────────────────────
+@app.route("/api/comments", methods=["GET", "POST"])
+def api_comments():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    if request.method == "GET":
+        entity_type = request.args.get("entity_type", "")
+        entity_id   = request.args.get("entity_id", "")
+        all_c = db.get_all("comments")
+        filtered = [c for c in all_c
+                    if (not entity_type or c["entity_type"] == entity_type)
+                    and (not entity_id   or c["entity_id"]   == entity_id)]
+        filtered.sort(key=lambda x: x["created_at"])
+        return jsonify(filtered)
+    body = request.get_json(force=True)
+    content = body.get("content", "").strip()
+    if not content:
+        return jsonify({"error": "content is required"}), 400
+    new_c = {
+        "id": str(uuid.uuid4()),
+        "entity_type": body.get("entity_type", "project"),
+        "entity_id": body.get("entity_id", ""),
+        "user_id": session["user_id"],
+        "user_name": session.get("full_name", "Unknown"),
+        "content": content,
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+    }
+    return jsonify(db.insert("comments", new_c))
+
+# ─── Enhanced Metrics (v2) ────────────────────────────────────────────────────
+@app.route("/api/metrics/v2", methods=["GET"])
+def api_metrics_v2():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+    projects  = db.get_all("projects")
+    employees = db.get_all("employees")
+    tasks     = db.get_all("tasks")
+    teams     = db.get_all("teams")
+    pending_approvals = [a for a in db.get_all("lead_approvals") if a["status"] == "pending"]
+    statuses = {}
+    for p in projects:
+        s = p.get("workflow_status") or p.get("status") or "draft"
+        statuses[s] = statuses.get(s, 0) + 1
+    avg_perf = round(sum(e.get("performance_score") or 85 for e in employees) / max(len(employees), 1), 1)
+    return jsonify({
+        "kpis": {
+            "total_projects": len(projects),
+            "active_projects": len([p for p in projects if p.get("workflow_status") == "active"]),
+            "total_employees": len(employees),
+            "total_teams": len(teams),
+            "pending_approvals": len(pending_approvals),
+            "completed_tasks": len([t for t in tasks if t["status"] == "Completed"]),
+            "avg_performance": avg_perf
+        },
+        "project_status_dist": statuses,
+        "department_dist": {},
+        "workload_chart": [{"name": e["name"], "workload": e.get("current_workload", 0)} for e in employees],
+        "project_timeline": [{"name": p["project_name"], "status": p.get("workflow_status","draft")} for p in projects[-8:]]
+    })
+
+# ─── Project status update (admin/PM force-set) ──────────────────────────────
+@app.route("/api/projects/<id>/set-status", methods=["POST"])
+def api_set_project_status(id):
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    new_ws = body.get("workflow_status")
+    if new_ws:
+        db.update("projects", id, {"workflow_status": new_ws})
+    return jsonify({"success": True})
 
 
 if __name__ == "__main__":

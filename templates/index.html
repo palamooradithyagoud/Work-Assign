@@ -3,834 +3,970 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AssignIQ — AI Workforce Management Platform</title>
-  <meta name="description" content="Production-grade AI Project Planning, Auditable Decision Engine, and Kanban Task Manager for Enterprises."/>
-  <!-- FontAwesome & Google Fonts -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <title>AssignIQ — Enterprise Workforce Management Platform</title>
+  <meta name="description" content="AI-powered enterprise workforce platform with multi-role project approval workflow."/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <!-- Custom Style -->
   <link rel="stylesheet" href="/static/style.css"/>
-  <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="dark-theme">
-  <div class="app-shell">
-    
-    <!-- ══ SIDEBAR NAVIGATION ══ -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">
-          <div class="logo-icon"><i class="fa-solid fa-brain-circuit text-gradient"></i></div>
-          <div class="logo-text">Assign<span class="text-accent">IQ</span></div>
+<div class="app-shell">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon"><i class="fa-solid fa-brain"></i></div>
+        <div class="logo-text">Assign<span>IQ</span></div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <!-- Admin Nav -->
+      <div class="nav-section" id="nav-admin" style="display:none">
+        <div class="nav-section-label">Admin</div>
+        <button class="nav-item active" data-view="view-admin-overview"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></button>
+        <button class="nav-item" data-view="view-admin-projects"><i class="fa-solid fa-folder-tree"></i><span>All Projects</span></button>
+        <button class="nav-item" data-view="view-admin-approvals"><i class="fa-solid fa-shield-check"></i><span>Approvals</span><span class="nav-badge" id="approval-count-badge" style="display:none">0</span></button>
+        <button class="nav-item" data-view="view-admin-employees"><i class="fa-solid fa-users-gear"></i><span>Employees</span></button>
+        <button class="nav-item" data-view="view-admin-users"><i class="fa-solid fa-user-shield"></i><span>Users</span></button>
+        <button class="nav-item" data-view="view-admin-audit"><i class="fa-solid fa-file-shield"></i><span>Audit Logs</span></button>
+      </div>
+
+      <!-- PM Nav -->
+      <div class="nav-section" id="nav-pm" style="display:none">
+        <div class="nav-section-label">Project Manager</div>
+        <button class="nav-item active" data-view="view-pm-dashboard"><i class="fa-solid fa-house-user"></i><span>My Dashboard</span></button>
+        <button class="nav-item" data-view="view-pm-projects"><i class="fa-solid fa-diagram-project"></i><span>My Projects</span></button>
+        <button class="nav-item" data-view="view-pm-employees"><i class="fa-solid fa-users"></i><span>Employees</span></button>
+        <button class="nav-item" data-view="view-audit-logs"><i class="fa-solid fa-file-shield"></i><span>Audit Logs</span></button>
+      </div>
+
+      <!-- Team Lead Nav -->
+      <div class="nav-section" id="nav-tl" style="display:none">
+        <div class="nav-section-label">Team Lead</div>
+        <button class="nav-item active" data-view="view-tl-dashboard"><i class="fa-solid fa-house-user"></i><span>My Dashboard</span></button>
+        <button class="nav-item" data-view="view-tl-team"><i class="fa-solid fa-people-group"></i><span>My Team</span></button>
+        <button class="nav-item" data-view="view-tl-tasks"><i class="fa-solid fa-list-check"></i><span>Sprint Tasks</span></button>
+      </div>
+
+      <!-- Employee Nav -->
+      <div class="nav-section" id="nav-emp" style="display:none">
+        <div class="nav-section-label">My Space</div>
+        <button class="nav-item active" data-view="view-emp-overview"><i class="fa-solid fa-house-user"></i><span>My Overview</span></button>
+        <button class="nav-item" data-view="view-emp-tasks"><i class="fa-solid fa-list-check"></i><span>My Tasks</span></button>
+        <button class="nav-item" data-view="view-emp-profile"><i class="fa-solid fa-address-card"></i><span>My Profile</span></button>
+      </div>
+
+      <!-- Common -->
+      <div class="nav-section">
+        <div class="nav-section-label">Platform</div>
+        <button class="nav-item" id="theme-toggle-btn"><i class="fa-solid fa-moon"></i><span>Toggle Theme</span></button>
+        <button class="nav-item" id="logout-btn" style="color:var(--accent-red)"><i class="fa-solid fa-right-from-bracket"></i><span>Logout</span></button>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-card" id="current-user-card">
+        <div class="user-avatar" id="sidebar-avatar"><span id="sidebar-initial">?</span></div>
+        <div class="user-info">
+          <div class="user-name" id="sidebar-username">Loading...</div>
+          <div class="user-role" id="sidebar-role">—</div>
         </div>
       </div>
-      
-      <nav class="sidebar-nav">
-        <!-- Project Manager / Admin Links -->
-        <div class="nav-section pm-admin-only">
-          <div class="nav-section-title">Management</div>
-          <button class="nav-item active" data-view="view-overview">
-            <i class="fa-solid fa-chart-pie"></i><span>Overview</span>
-          </button>
-          <button class="nav-item" data-view="view-projects">
-            <i class="fa-solid fa-folder-tree"></i><span>Projects</span>
-          </button>
-          <button class="nav-item" data-view="view-employees">
-            <i class="fa-solid fa-users-gear"></i><span>Employees</span>
-          </button>
-          <button class="nav-item" data-view="view-kanban">
-            <i class="fa-solid fa-bars-progress"></i><span>Kanban Tasks</span>
-          </button>
-          <button class="nav-item" data-view="view-audit-logs">
-            <i class="fa-solid fa-file-shield"></i><span>Audit Logs</span>
-          </button>
-        </div>
+    </div>
+  </aside>
 
-        <!-- Employee Links -->
-        <div class="nav-section employee-only" style="display:none">
-          <div class="nav-section-title">My Space</div>
-          <button class="nav-item" data-view="view-emp-dashboard">
-            <i class="fa-solid fa-house-user"></i><span>My Overview</span>
-          </button>
-          <button class="nav-item" data-view="view-emp-tasks">
-            <i class="fa-solid fa-list-check"></i><span>My Tasks</span>
-          </button>
-          <button class="nav-item" data-view="view-emp-profile">
-            <i class="fa-solid fa-address-card"></i><span>My Profile & Skills</span>
-          </button>
-          <button class="nav-item" data-view="view-emp-calendar">
-            <i class="fa-solid fa-calendar-days"></i><span>My Calendar</span>
-          </button>
-        </div>
+  <!-- ══ MAIN CONTENT ══ -->
+  <main class="main-content">
 
-        <!-- Admin Only -->
-        <div class="nav-section admin-only" style="display:none">
-          <div class="nav-section-title">Administration</div>
-          <button class="nav-item" data-view="view-admin-users">
-            <i class="fa-solid fa-users-viewfinder"></i><span>User Control</span>
-          </button>
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="topbar-title" id="topbar-title">AssignIQ</div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" id="global-search" placeholder="Search projects, employees…"/>
         </div>
-      </nav>
-      
-      <div class="sidebar-footer">
-        <div class="user-badge">
-          <div class="user-avatar" id="avatar-fallback"><i class="fa-regular fa-user"></i></div>
-          <div class="user-info">
-            <div class="user-name" id="session-username">Loading...</div>
-            <div class="user-role" id="session-role">Role</div>
+        <div class="relative" id="notif-wrap">
+          <button class="icon-btn" id="notif-btn" title="Notifications">
+            <i class="fa-solid fa-bell"></i>
+            <span class="notif-count" id="notif-count" style="display:none">0</span>
+          </button>
+          <div class="notif-panel" id="notif-panel">
+            <div class="notif-panel-header">
+              <span>Notifications</span>
+              <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
+            </div>
+            <div class="notif-list" id="notif-list">
+              <div class="empty-state" style="padding:24px"><i class="fa-regular fa-bell-slash"></i><p>No notifications</p></div>
+            </div>
           </div>
         </div>
+        <button class="icon-btn" onclick="toggleTheme()" title="Toggle Theme"><i class="fa-solid fa-circle-half-stroke"></i></button>
       </div>
-    </aside>
+    </header>
 
-    <!-- ══ MAIN CONTENT WRAPPER ══ -->
-    <main class="main-content">
-      
-      <!-- ── TOP BAR ── -->
-      <header class="topbar">
-        <div class="topbar-left">
-          <h1 class="page-title" id="view-title">Overview Dashboard</h1>
-        </div>
-        
-        <div class="topbar-right">
-          <!-- Notification Dropdown -->
-          <div class="notification-wrapper">
-            <button class="topbar-btn" id="notif-btn" title="Notifications">
-              <i class="fa-regular fa-bell"></i>
-              <span class="badge" id="notif-badge" style="display:none">0</span>
+    <!-- Content Area -->
+    <div class="content-area">
+
+      <!-- ════════════════════════════════════════
+           ADMIN VIEWS
+           ════════════════════════════════════════ -->
+
+      <!-- Admin Overview -->
+      <section class="view" id="view-admin-overview">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>Organisation Overview</h1>
+            <p>Real-time metrics and pending actions</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-create-project')">
+              <i class="fa-solid fa-plus"></i> New Project
             </button>
-            <div class="dropdown-panel" id="notif-dropdown">
-              <div class="dropdown-header">
-                <h3>Notifications</h3>
-                <button class="text-btn" onclick="markAllNotificationsRead()">Mark all read</button>
-              </div>
-              <div class="dropdown-list" id="notif-list">
-                <p class="empty-state">No new notifications</p>
-              </div>
-            </div>
           </div>
-
-          <!-- Theme Toggle -->
-          <button class="topbar-btn" id="theme-btn" title="Toggle Theme">
-            <i class="fa-regular fa-moon"></i>
-          </button>
-
-          <!-- Quick Switcher (For demonstration convenience) -->
-          <div class="quick-switcher">
-            <select id="role-quick-switch" onchange="demoQuickSwitch(this.value)">
-              <option value="" disabled selected>Demo Quick-Switch</option>
-              <option value="admin">Admin View</option>
-              <option value="project_manager">PM View</option>
-              <option value="employee">Employee View</option>
-            </select>
-          </div>
-          
-          <button class="btn btn-logout" onclick="signOut()">
-            <i class="fa-solid fa-right-from-bracket"></i><span>Log Out</span>
-          </button>
         </div>
-      </header>
 
-      <!-- ── VIEW CONTENT CONTAINER ── -->
-      <div class="view-container">
-        
-        <div class="alert" id="global-alert"></div>
+        <!-- KPIs -->
+        <div class="kpi-grid" id="admin-kpis">
+          <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-folder-tree"></i></div>
+            <div class="kpi-value" id="kpi-total-projects">—</div>
+            <div class="kpi-label">Total Projects</div>
+          </div>
+          <div class="kpi-card green">
+            <div class="kpi-icon"><i class="fa-solid fa-rocket-launch"></i></div>
+            <div class="kpi-value" id="kpi-active-projects">—</div>
+            <div class="kpi-label">Active Projects</div>
+          </div>
+          <div class="kpi-card amber">
+            <div class="kpi-icon"><i class="fa-solid fa-shield-check"></i></div>
+            <div class="kpi-value" id="kpi-pending-approvals">—</div>
+            <div class="kpi-label">Pending Approvals</div>
+          </div>
+          <div class="kpi-card pink">
+            <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="kpi-value" id="kpi-total-employees">—</div>
+            <div class="kpi-label">Total Employees</div>
+          </div>
+          <div class="kpi-card cyan">
+            <div class="kpi-icon"><i class="fa-solid fa-people-group"></i></div>
+            <div class="kpi-value" id="kpi-total-teams">—</div>
+            <div class="kpi-label">Active Teams</div>
+          </div>
+          <div class="kpi-card red">
+            <div class="kpi-icon"><i class="fa-solid fa-chart-bar"></i></div>
+            <div class="kpi-value" id="kpi-avg-perf">—</div>
+            <div class="kpi-label">Avg Performance</div>
+          </div>
+        </div>
 
-        <!-- ════ VIEW 1: PM/ADMIN OVERVIEW DASHBOARD ════ -->
-        <section class="view-panel active" id="view-overview">
-          <div class="kpi-grid">
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Total Projects</span>
-                <i class="fa-solid fa-folder kpi-icon text-indigo"></i>
-              </div>
-              <div class="kpi-value count-up" id="kpi-total-projects">0</div>
-              <div class="kpi-subtitle"><span class="trend-positive"><i class="fa-solid fa-arrow-trend-up"></i> +12%</span> from last quarter</div>
+        <div class="main-aside">
+          <!-- Project Pipeline -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title"><i class="fa-solid fa-stream"></i> Project Pipeline</div>
+              <button class="btn btn-ghost btn-sm" onclick="switchView('view-admin-projects')">View All</button>
             </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Active Projects</span>
-                <i class="fa-solid fa-spinner-third kpi-icon text-purple animate-spin"></i>
-              </div>
-              <div class="kpi-value" id="kpi-active-projects">0</div>
-              <div class="kpi-subtitle">Ongoing software developments</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Completed Projects</span>
-                <i class="fa-solid fa-circle-check kpi-icon text-emerald"></i>
-              </div>
-              <div class="kpi-value" id="kpi-completed-projects">0</div>
-              <div class="kpi-subtitle">Milestones delivered on schedule</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Team Utilization</span>
-                <i class="fa-solid fa-chart-line kpi-icon text-amber"></i>
-              </div>
-              <div class="kpi-value" id="kpi-utilization">0%</div>
-              <div class="kpi-subtitle">Average workload optimization</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Pending Tasks</span>
-                <i class="fa-solid fa-list-check kpi-icon text-sky"></i>
-              </div>
-              <div class="kpi-value" id="kpi-pending-tasks">0</div>
-              <div class="kpi-subtitle">Currently allocated to sprints</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Project Health Score</span>
-                <i class="fa-solid fa-heart-pulse kpi-icon text-rose animate-pulse"></i>
-              </div>
-              <div class="kpi-value" id="kpi-health">94/100</div>
-              <div class="kpi-subtitle">Engine auditable health analytics</div>
+            <div id="admin-projects-list">
+              <div class="empty-state"><div class="spinner"></div></div>
             </div>
           </div>
 
-          <div class="charts-grid">
-            <div class="chart-card glass">
-              <div class="chart-header">
-                <h3>Department Performance</h3>
+          <!-- Right panel -->
+          <div class="d-flex" style="flex-direction:column;gap:16px">
+            <!-- Pending Approvals Widget -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><i class="fa-solid fa-shield-check"></i> Pending Approvals</div>
+                <button class="btn btn-ghost btn-sm" onclick="switchView('view-admin-approvals')">View All</button>
               </div>
-              <div class="chart-wrapper">
-                <canvas id="chart-department"></canvas>
+              <div id="admin-approvals-widget">
+                <div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>No pending approvals</p></div>
               </div>
             </div>
-            <div class="chart-card glass">
-              <div class="chart-header">
-                <h3>Employee Workload Allocation (%)</h3>
+
+            <!-- Workload Chart -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><i class="fa-solid fa-chart-bar"></i> Team Workload</div>
               </div>
-              <div class="chart-wrapper">
+              <div class="chart-container" style="height:160px">
                 <canvas id="chart-workload"></canvas>
               </div>
             </div>
-            <div class="chart-card glass full-width">
-              <div class="chart-header">
-                <h3>Weekly Productive Sprints</h3>
-              </div>
-              <div class="chart-wrapper" style="height: 300px">
-                <canvas id="chart-productivity"></canvas>
-              </div>
-            </div>
           </div>
+        </div>
+      </section>
 
-          <!-- AI INSIGHT PANEL & PLACEHOLDERS -->
-          <div class="section-header" style="margin-top:40px">
-            <h2><i class="fa-solid fa-wand-magic-sparkles text-gradient"></i> AssignIQ AI Insights Panel</h2>
+      <!-- Admin Projects -->
+      <section class="view" id="view-admin-projects">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>All Projects</h1>
+            <p>Manage and track project lifecycle</p>
           </div>
-          <div class="ai-insight-panel glass">
-            <div class="ai-panel-grid">
-              <div class="ai-widget">
-                <h4><i class="fa-solid fa-chart-gantt"></i> Resource Capacity Planning</h4>
-                <div class="ai-widget-content">
-                  <div class="progress-bar-container">
-                    <span class="pb-label">Design Department (100% capacity)</span>
-                    <div class="pb-track"><div class="pb-fill bg-rose" style="width: 100%"></div></div>
-                  </div>
-                  <div class="progress-bar-container">
-                    <span class="pb-label">Engineering (78% capacity)</span>
-                    <div class="pb-track"><div class="pb-fill bg-indigo" style="width: 78%"></div></div>
-                  </div>
-                  <p class="ai-hint"><i class="fa-solid fa-triangle-exclamation text-amber"></i> <strong>Capacity Alert</strong>: Designer Priya Gupta is overallocated for the upcoming sprint cycles.</p>
-                </div>
-              </div>
-              
-              <div class="ai-widget">
-                <h4><i class="fa-solid fa-graduation-cap"></i> Skill Gap Analysis</h4>
-                <div class="ai-widget-content">
-                  <div class="skill-pill-match">
-                    <span class="pill-name">Kubernetes / DevOps</span>
-                    <span class="pill-status danger">Gap Detected</span>
-                  </div>
-                  <div class="skill-pill-match">
-                    <span class="pill-name">Python FastAPI / AI Chatbots</span>
-                    <span class="pill-status success">Optimized</span>
-                  </div>
-                  <p class="ai-hint"><i class="fa-solid fa-lightbulb text-purple"></i> <strong>Recruitment Suggestion</strong>: High demand for Kubernetes engineers; recommend training Meera Nair or hiring 1 DevOps specialist.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ════ VIEW 2: PROJECTS MANAGEMENT ════ -->
-        <section class="view-panel" id="view-projects">
-          <div class="action-header">
-            <div class="search-box">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="project-search" placeholder="Search projects by name..." oninput="filterProjects()"/>
-            </div>
-            <button class="btn btn-primary" onclick="openCreateProjectModal()">
-              <i class="fa-solid fa-folder-plus"></i> Create Project
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-create-project')">
+              <i class="fa-solid fa-plus"></i> New Project
             </button>
           </div>
-
-          <div class="glass panel-table-wrapper" style="margin-top:20px">
-            <table class="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Project Name</th>
-                  <th>Priority</th>
-                  <th>Deadline</th>
-                  <th>Team Size</th>
-                  <th>Budget ($)</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="projects-table-body">
-                <!-- Loaded Dynamically -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- PROJECT DETAILS PANEL & AI PLAN RESULTS -->
-          <div id="project-detail-panel" style="display:none; margin-top:40px">
-            <div class="glass detail-container">
-              <div class="detail-header">
-                <h2 id="detail-proj-name">Project Details</h2>
-                <div class="detail-actions">
-                  <button class="btn btn-secondary" onclick="generateAIPlan()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate AI Plan</button>
-                  <button class="btn btn-purple" onclick="runAIAssignment()"><i class="fa-solid fa-users-gear"></i> Run Assignment Engine</button>
-                </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <div class="table-toolbar-title">Projects</div>
+            <div class="table-toolbar-actions">
+              <div class="search-box" style="min-width:200px">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="projects-search" placeholder="Search…" oninput="filterProjectsTable()"/>
               </div>
-              <p class="proj-desc" id="detail-proj-desc">Project Description</p>
-              
-              <!-- AI Success Predictor & Tool Recommender Card -->
-              <div class="ai-predictor-card glass" id="ai-predictor-card" style="margin-top: 15px; margin-bottom: 25px; padding: 20px; border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.2); background: rgba(139, 92, 246, 0.03);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                  <h4 style="margin: 0; color: #a78bfa; display: flex; align-items: center; gap: 8px; font-size: 16px;">
-                    <i class="fa-solid fa-gauge-high"></i> AI Success Probability & Tool Matcher
-                  </h4>
-                  <div class="badge" id="predicted-success-badge" style="background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 14px;">Calculating...</div>
-                </div>
-                <p id="predictor-trace" style="font-size: 13.5px; color: var(--color-text-muted); margin-bottom: 15px; line-height: 1.4;">Comparing project criteria with historical project success vectors...</p>
-                <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #a78bfa; letter-spacing: 0.5px; margin-bottom: 8px;">Recommended Tooling Infrastructure:</div>
-                <div id="recommended-tools-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                  <!-- Dynamically populated tool pills -->
-                </div>
-              </div>
-              
-              <!-- Tabbed details -->
-              <div class="detail-tabs">
-                <button class="detail-tab-btn active" data-det-tab="ai-plan-tab">AI Project Plan</button>
-                <button class="detail-tab-btn" data-det-tab="assignments-tab">Resource Allocations</button>
-              </div>
-
-              <!-- AI Project Plan Tab -->
-              <div class="detail-tab-content active" id="ai-plan-tab">
-                <div class="skeleton-loader" id="ai-plan-skeleton" style="display:none">
-                  <div class="skeleton-line"></div>
-                  <div class="skeleton-line width-70"></div>
-                  <div class="skeleton-line width-50"></div>
-                </div>
-                <div id="ai-plan-results" class="ai-results-grid">
-                  <div class="empty-state">Click <strong>Generate AI Plan</strong> to process with Groq LLaMA models.</div>
-                </div>
-              </div>
-
-              <!-- Resource Assignments Tab -->
-              <div class="detail-tab-content" id="assignments-tab">
-                <div class="skeleton-loader" id="assign-skeleton" style="display:none">
-                  <div class="skeleton-line"></div>
-                  <div class="skeleton-line width-60"></div>
-                </div>
-                <div id="assignments-results">
-                  <div class="empty-state">No resource allocations running. Select <strong>Run Assignment Engine</strong>.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ════ VIEW 3: EMPLOYEES MANAGEMENT ════ -->
-        <section class="view-panel" id="view-employees">
-          <div class="action-header">
-            <div class="search-box">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="employee-search" placeholder="Search employees by name or skill..." oninput="filterEmployees()"/>
-            </div>
-            <div style="display:flex; gap:10px">
-              <input type="file" id="import-csv-input" accept=".csv" style="display:none" onchange="uploadCSV(this)"/>
-              <button class="btn btn-secondary" onclick="document.getElementById('import-csv-input').click()">
-                <i class="fa-solid fa-file-import"></i> Import CSV
-              </button>
-              <button class="btn btn-primary" onclick="openAddEmployeeModal()">
-                <i class="fa-solid fa-user-plus"></i> Add Employee
-              </button>
-            </div>
-          </div>
-
-          <div class="employee-grid" id="employees-card-grid" style="margin-top:20px">
-            <!-- Loaded Dynamically -->
-          </div>
-        </section>
-
-        <!-- ════ VIEW 4: KANBAN TASKS MODULE ════ -->
-        <section class="view-panel" id="view-kanban">
-          <div class="action-header">
-            <div class="project-selector-wrapper">
-              <label for="kanban-project-select">Active Project:</label>
-              <select id="kanban-project-select" onchange="loadProjectTasks(this.value)">
-                <!-- Loaded Dynamically -->
+              <select class="form-control" id="projects-filter-status" onchange="filterProjectsTable()" style="width:160px">
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="pending_pm">Pending PM</option>
+                <option value="pm_approved">PM Approved</option>
+                <option value="leads_pending">Leads Pending</option>
+                <option value="active">Active</option>
               </select>
             </div>
-            <button class="btn btn-primary" id="create-task-btn" onclick="openCreateTaskModal()">
-              <i class="fa-solid fa-circle-plus"></i> Create Task
-            </button>
           </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Project</th><th>Client</th><th>Priority</th><th>Assigned PM</th><th>Status</th><th>Budget</th><th>Created</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-projects-tbody">
+              <tr><td colspan="8" class="text-center" style="padding:40px"><div class="spinner" style="margin:auto"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-          <div class="kanban-board" style="margin-top:20px">
-            <div class="kanban-column" id="col-todo" ondragover="allowDrop(event)" ondrop="drop(event, 'To Do')">
-              <div class="column-header">
-                <h3>To Do</h3>
-                <span class="counter" id="count-todo">0</span>
-              </div>
-              <div class="kanban-cards" id="cards-todo"></div>
-            </div>
-            <div class="kanban-column" id="col-inprogress" ondragover="allowDrop(event)" ondrop="drop(event, 'In Progress')">
-              <div class="column-header animate-border-pulse">
-                <h3>In Progress</h3>
-                <span class="counter" id="count-inprogress">0</span>
-              </div>
-              <div class="kanban-cards" id="cards-inprogress"></div>
-            </div>
-            <div class="kanban-column" id="col-review" ondragover="allowDrop(event)" ondrop="drop(event, 'Review')">
-              <div class="column-header">
-                <h3>Review</h3>
-                <span class="counter" id="count-review">0</span>
-              </div>
-              <div class="kanban-cards" id="cards-review"></div>
-            </div>
-            <div class="kanban-column" id="col-testing" ondragover="allowDrop(event)" ondrop="drop(event, 'Testing')">
-              <div class="column-header">
-                <h3>Testing</h3>
-                <span class="counter" id="count-testing">0</span>
-              </div>
-              <div class="kanban-cards" id="cards-testing"></div>
-            </div>
-            <div class="kanban-column" id="col-completed" ondragover="allowDrop(event)" ondrop="drop(event, 'Completed')">
-              <div class="column-header">
-                <h3>Completed</h3>
-                <span class="counter" id="count-completed">0</span>
-              </div>
-              <div class="kanban-cards" id="cards-completed"></div>
-            </div>
+      <!-- Admin Approvals -->
+      <section class="view" id="view-admin-approvals">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>Team Lead Approvals</h1>
+            <p>Review and approve team lead selections made by Project Managers</p>
           </div>
-        </section>
-
-        <!-- ════ VIEW 5: EMPLOYEE DASHBOARD OVERVIEW ════ -->
-        <section class="view-panel" id="view-emp-dashboard">
-          <div class="kpi-grid">
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">My Assigned Tasks</span>
-                <i class="fa-solid fa-list-check kpi-icon text-indigo"></i>
-              </div>
-              <div class="kpi-value" id="emp-kpi-total-tasks">0</div>
-              <div class="kpi-subtitle">Allocated to my active sprints</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Pending Sprints</span>
-                <i class="fa-solid fa-spinner-third kpi-icon text-purple"></i>
-              </div>
-              <div class="kpi-value" id="emp-kpi-pending-tasks">0</div>
-              <div class="kpi-subtitle">Tasks awaiting execution</div>
-            </div>
-            <div class="kpi-card glass">
-              <div class="kpi-header">
-                <span class="kpi-title">Completed Tasks</span>
-                <i class="fa-solid fa-check-double kpi-icon text-emerald"></i>
-              </div>
-              <div class="kpi-value" id="emp-kpi-completed-tasks">0</div>
-              <div class="kpi-subtitle">Sprint tasks marked complete</div>
-            </div>
+          <div class="page-header-actions">
+            <select class="form-control" id="approval-filter" onchange="loadApprovals()" style="width:160px">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
           </div>
+        </div>
+        <div id="approvals-list" style="display:flex;flex-direction:column;gap:16px">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </section>
 
-          <div class="dashboard-split" style="margin-top:30px">
-            <div class="split-col glass">
-              <h3>Today's Pending Tasks</h3>
-              <div class="task-list-simple" id="emp-today-tasks">
-                <p class="empty-state">No pending tasks for today</p>
-              </div>
-            </div>
-            <div class="split-col glass">
-              <h3>My Notifications</h3>
-              <div class="task-list-simple" id="emp-notif-feed">
-                <p class="empty-state">No notifications found</p>
-              </div>
-            </div>
+      <!-- Admin Employees -->
+      <section class="view" id="view-admin-employees">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1>Employee Directory</h1>
+            <p>All 20 employees across 9 departments</p>
           </div>
-        </section>
-
-        <!-- ════ VIEW 6: EMPLOYEE TASKS ════ -->
-        <section class="view-panel" id="view-emp-tasks">
-          <div class="employee-tasks-grid" id="emp-tasks-container">
-            <!-- Loaded dynamically -->
-          </div>
-        </section>
-
-        <!-- ════ VIEW 7: EMPLOYEE PROFILE & SKILLS ════ -->
-        <section class="view-panel" id="view-emp-profile">
-          <div class="profile-layout-container glass">
-            <div class="profile-left">
-              <div class="profile-photo-wrap">
-                <img id="emp-prof-photo" src="" alt="Profile Photo"/>
-              </div>
-              <h2 id="emp-prof-name">Name</h2>
-              <p class="dept" id="emp-prof-dept">Department</p>
-              <div class="meta-field"><strong>Availability:</strong> <span id="emp-prof-avail">100%</span></div>
-              <div class="meta-field"><strong>Current Workload:</strong> <span id="emp-prof-workload">0%</span></div>
-              <div class="meta-field"><strong>Experience:</strong> <span id="emp-prof-exp">0 yrs</span></div>
-            </div>
-            <div class="profile-right">
-              <h3>Core Skills</h3>
-              <div class="skills-manager">
-                <div class="badge-list" id="emp-prof-skills-list"></div>
-                <div class="skills-input-row" style="margin-top:15px">
-                  <input type="text" id="add-skill-input" placeholder="Enter skill (e.g. Docker)"/>
-                  <button class="btn btn-secondary" onclick="addEmployeeSkill()">Add Skill</button>
-                </div>
-              </div>
-
-              <h3 style="margin-top:30px">Certifications</h3>
-              <div class="certs-manager">
-                <ul class="certs-list" id="emp-prof-certs-list"></ul>
-                <div class="certs-input-row" style="margin-top:15px">
-                  <input type="text" id="add-cert-input" placeholder="Enter certification (e.g. AWS CKA)"/>
-                  <button class="btn btn-secondary" onclick="addEmployeeCert()">Add Cert</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- ════ VIEW 8: EMPLOYEE CALENDAR ════ -->
-        <section class="view-panel" id="view-emp-calendar">
-          <div class="glass calendar-container">
-            <div class="calendar-header">
-              <h2>July 2026</h2>
-            </div>
-            <div class="calendar-grid">
-              <div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div>
-              <!-- Calendar dates loaded dynamically -->
-            </div>
-          </div>
-        </section>
-
-        <!-- ════ VIEW 9: AUDIT LOGS ════ -->
-        <section class="view-panel" id="view-audit-logs">
-          <div class="glass panel-table-wrapper">
-            <table class="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>Details</th>
-                  <th>Triggered By</th>
-                </tr>
-              </thead>
-              <tbody id="audit-table-body">
-                <!-- Dynamically loaded -->
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <!-- ════ VIEW 10: ADMIN USER CONTROL ════ -->
-        <section class="view-panel" id="view-admin-users">
-          <div class="action-header">
+          <div class="page-header-actions">
             <div class="search-box">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="user-search" placeholder="Search system users..." oninput="filterUsers()"/>
+              <i class="fa-solid fa-search"></i>
+              <input type="text" id="admin-emp-search" placeholder="Search name, skill…" oninput="filterAdminEmployees()"/>
             </div>
-            <button class="btn btn-primary" onclick="openCreateUserModal()">
-              <i class="fa-solid fa-user-gear"></i> Add User
+          </div>
+        </div>
+        <div class="emp-grid" id="admin-emp-grid">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- Admin Users -->
+      <section class="view" id="view-admin-users">
+        <div class="page-header">
+          <div class="page-header-left"><h1>User Management</h1><p>Manage system user accounts and roles</p></div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-create-user')"><i class="fa-solid fa-plus"></i> Add User</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <div class="table-toolbar">
+            <div class="table-toolbar-title">System Users</div>
+            <div class="search-box" style="min-width:200px">
+              <i class="fa-solid fa-search"></i>
+              <input type="text" id="user-search" placeholder="Search…" oninput="filterUsers()"/>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="4" class="text-center" style="padding:40px"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Admin Audit -->
+      <section class="view" id="view-admin-audit">
+        <div class="page-header">
+          <div class="page-header-left"><h1>Audit Logs</h1><p>Full system activity trail</p></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Timestamp</th><th>Action</th><th>Details</th><th>User</th></tr></thead>
+            <tbody id="audit-tbody"><tr><td colspan="4" class="text-center" style="padding:40px"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Shared Audit Logs (for PM) -->
+      <section class="view" id="view-audit-logs">
+        <div class="page-header"><div class="page-header-left"><h1>Audit Logs</h1></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Timestamp</th><th>Action</th><th>Details</th><th>User</th></tr></thead>
+            <tbody id="audit-tbody-pm"></tbody>
+          </table>
+        </div>
+      </section>
+
+
+      <!-- ════════════════════════════════════════
+           PROJECT MANAGER VIEWS
+           ════════════════════════════════════════ -->
+
+      <!-- PM Dashboard -->
+      <section class="view" id="view-pm-dashboard">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1 id="pm-greeting">Good day, Project Manager</h1>
+            <p>Here's what needs your attention today</p>
+          </div>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi-card"><div class="kpi-icon"><i class="fa-solid fa-folder"></i></div><div class="kpi-value" id="pm-kpi-total">—</div><div class="kpi-label">My Projects</div></div>
+          <div class="kpi-card amber"><div class="kpi-icon"><i class="fa-solid fa-clock"></i></div><div class="kpi-value" id="pm-kpi-pending">—</div><div class="kpi-label">Pending Review</div></div>
+          <div class="kpi-card green"><div class="kpi-icon"><i class="fa-solid fa-check-circle"></i></div><div class="kpi-value" id="pm-kpi-active">—</div><div class="kpi-label">Active</div></div>
+          <div class="kpi-card pink"><div class="kpi-icon"><i class="fa-solid fa-people-group"></i></div><div class="kpi-value" id="pm-kpi-teams">—</div><div class="kpi-label">My Teams</div></div>
+        </div>
+        <!-- Action Required panel -->
+        <div id="pm-action-required" class="mb-24"></div>
+        <!-- My Projects list -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-folder-tree"></i> My Projects</div>
+          </div>
+          <div id="pm-projects-list"></div>
+        </div>
+      </section>
+
+      <!-- PM Projects -->
+      <section class="view" id="view-pm-projects">
+        <div class="page-header">
+          <div class="page-header-left"><h1>My Projects</h1><p>Manage your assigned projects through the workflow</p></div>
+        </div>
+        <div id="pm-projects-cards" style="display:flex;flex-direction:column;gap:16px">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <!-- PM Workflow Detail (the big one) -->
+      <section class="view" id="view-pm-workflow">
+        <div style="margin-bottom:16px">
+          <button class="btn btn-ghost btn-sm" onclick="switchView('view-pm-projects')">
+            <i class="fa-solid fa-arrow-left"></i> Back to Projects
+          </button>
+        </div>
+
+        <!-- Project Info Header -->
+        <div class="card mb-16" id="workflow-project-header">
+          <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px">
+              <h2 id="wf-proj-name" style="font-size:20px;font-weight:800;margin-bottom:4px">Project Name</h2>
+              <p id="wf-proj-desc" style="font-size:13px;color:var(--text-secondary)">Description</p>
+              <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+                <span class="badge" id="wf-proj-priority"></span>
+                <span class="badge" id="wf-proj-status"></span>
+                <span class="badge badge-blue" id="wf-proj-client"></span>
+              </div>
+            </div>
+            <div class="info-list" style="min-width:200px;max-width:240px">
+              <div class="info-item"><span class="info-key">Budget</span><span class="info-val" id="wf-proj-budget">—</span></div>
+              <div class="info-item"><span class="info-key">Duration</span><span class="info-val" id="wf-proj-duration">—</span></div>
+              <div class="info-item"><span class="info-key">Team Size</span><span class="info-val" id="wf-proj-teamsize">—</span></div>
+              <div class="info-item"><span class="info-key">Skills</span><span class="info-val" id="wf-proj-skills">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow Stepper -->
+        <div class="workflow-stepper" id="workflow-stepper">
+          <div class="workflow-step" id="step-1"><div class="step-circle">1</div><div class="step-label">PM Review</div></div>
+          <div class="workflow-step" id="step-2"><div class="step-circle">2</div><div class="step-label">Modules</div></div>
+          <div class="workflow-step" id="step-3"><div class="step-circle">3</div><div class="step-label">Teams</div></div>
+          <div class="workflow-step" id="step-4"><div class="step-circle">4</div><div class="step-label">Select Leads</div></div>
+          <div class="workflow-step" id="step-5"><div class="step-circle">5</div><div class="step-label">Admin Approval</div></div>
+          <div class="workflow-step" id="step-6"><div class="step-circle">6</div><div class="step-label">AI Assign</div></div>
+          <div class="workflow-step" id="step-7"><div class="step-circle">7</div><div class="step-label">Review</div></div>
+          <div class="workflow-step" id="step-8"><div class="step-circle">8</div><div class="step-label">Publish</div></div>
+        </div>
+
+        <!-- Step panels -->
+
+        <!-- STEP 1: PM Review -->
+        <div id="wf-panel-review" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-clipboard-check"></i> Step 1 — Review Project Requirements</div>
+          </div>
+          <div class="form-grid">
+            <div class="form-section">
+              <div class="form-section-title">Project Requirements</div>
+              <div class="info-list" id="review-requirements"></div>
+            </div>
+            <div class="form-section">
+              <div class="form-section-title">Required Skills & Tech</div>
+              <div id="review-skills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+              <div class="form-section-title" style="margin-top:8px">PM Assessment</div>
+              <div class="form-group">
+                <label class="form-label">Comment / Notes</label>
+                <textarea class="form-control" id="pm-review-comment" rows="3" placeholder="Add your assessment notes…"></textarea>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
+            <button class="btn btn-secondary" onclick="pmReview('request_changes')"><i class="fa-solid fa-rotate-left"></i> Request Changes</button>
+            <button class="btn btn-success" onclick="pmReview('approve')"><i class="fa-solid fa-check"></i> Approve Project</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Modules -->
+        <div id="wf-panel-modules" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-sitemap"></i> Step 2 — Break Project into Modules</div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-module')"><i class="fa-solid fa-plus"></i> Add Module</button>
+          </div>
+          <div id="modules-list" style="display:flex;flex-direction:column;gap:10px">
+            <div class="empty-state" style="padding:32px"><i class="fa-solid fa-sitemap"></i><p>Add modules to break the project into components</p></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:16px">
+            <button class="btn btn-primary" onclick="proceedToTeams()" id="btn-proceed-teams"><i class="fa-solid fa-arrow-right"></i> Proceed to Teams</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Teams -->
+        <div id="wf-panel-teams" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-people-roof"></i> Step 3 — Create Teams</div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-team')"><i class="fa-solid fa-plus"></i> Create Team</button>
+          </div>
+          <div id="teams-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:8px">
+            <div class="empty-state" style="padding:32px;grid-column:1/-1"><i class="fa-solid fa-people-roof"></i><p>Create teams and link them to modules</p></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:16px">
+            <button class="btn btn-primary" onclick="proceedToLeadSelection()" id="btn-proceed-leads"><i class="fa-solid fa-arrow-right"></i> Select Team Leads</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: Lead Selection -->
+        <div id="wf-panel-leads" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-crown"></i> Step 4 — Select Team Leads</div>
+            <span class="badge badge-amber">Requires Admin Approval</span>
+          </div>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+            Select a Team Lead for each team. Your selection will be sent to Admin for approval before proceeding.
+          </p>
+          <div id="lead-selection-list" style="display:flex;flex-direction:column;gap:20px"></div>
+        </div>
+
+        <!-- STEP 5: Waiting for Admin Approval -->
+        <div id="wf-panel-waiting" class="card" style="display:none;text-align:center;padding:48px">
+          <i class="fa-solid fa-hourglass-half" style="font-size:48px;color:var(--accent-amber);margin-bottom:16px"></i>
+          <h3 style="font-size:18px;font-weight:800;margin-bottom:8px">Waiting for Admin Approval</h3>
+          <p style="color:var(--text-secondary);max-width:400px;margin:0 auto 20px">
+            Your team lead selections have been submitted. Admin will review and approve or reject each selection.
+          </p>
+          <div id="approval-status-list"></div>
+        </div>
+
+        <!-- STEP 6: AI Assignment -->
+        <div id="wf-panel-ai" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-robot"></i> Step 6 — AI Employee Assignment</div>
+            <button class="btn btn-primary" onclick="runFullAIAssignment()" id="btn-run-ai">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Run AI Assignment Engine
             </button>
           </div>
-
-          <div class="glass panel-table-wrapper" style="margin-top:20px">
-            <table class="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="users-table-body">
-                <!-- Loaded Dynamically -->
-              </tbody>
-            </table>
+          <div id="ai-assignment-results" style="margin-top:16px">
+            <div class="empty-state"><i class="fa-solid fa-robot"></i><h3>Ready to Assign</h3><p>Click "Run AI Assignment Engine" to automatically assign employees to all teams.</p></div>
           </div>
-        </section>
+        </div>
 
-      </div><!-- /view-container -->
-    </main>
-  </div><!-- /app-shell -->
+        <!-- STEP 7: Review Assignments -->
+        <div id="wf-panel-review-assignments" class="card" style="display:none">
+          <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-magnifying-glass"></i> Step 7 — Review AI Assignments</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="runFullAIAssignment()"><i class="fa-solid fa-rotate"></i> Recalculate</button>
+              <button class="btn btn-primary btn-sm" onclick="saveAndProceedPublish()"><i class="fa-solid fa-check"></i> Accept All</button>
+            </div>
+          </div>
+          <div id="review-assignments-list" style="display:flex;flex-direction:column;gap:16px;margin-top:8px"></div>
+        </div>
 
-  <!-- ════ COLLAPSIBLE PROJECT CHAT BAR (BOTTOM RIGHT) ════ -->
-  <div class="project-chat-drawer" id="chat-drawer" style="display:none">
-    <button class="chat-toggle-btn" onclick="toggleChatDrawer()">
-      <i class="fa-regular fa-comments"></i> <span>Project Chat</span>
-      <span class="unread-dot" id="chat-unread" style="display:none"></span>
-    </button>
-    <div class="chat-box-container" id="chat-box-wrap" style="display:none">
-      <div class="chat-header">
-        <h4 id="chat-proj-title">Chat: Project</h4>
-        <button class="close-btn" onclick="toggleChatDrawer()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="chat-messages" id="chat-msg-list">
-        <!-- Messages -->
-      </div>
-      <div class="chat-input-row">
-        <input type="text" id="chat-msg-input" placeholder="Type message..." onkeydown="if(event.key==='Enter') sendChatMessage()"/>
-        <button class="btn btn-primary" onclick="sendChatMessage()"><i class="fa-regular fa-paper-plane"></i></button>
-      </div>
+        <!-- STEP 8: Publish -->
+        <div id="wf-panel-publish" class="card" style="display:none;text-align:center;padding:48px">
+          <div id="publish-ready-state">
+            <i class="fa-solid fa-rocket-launch" style="font-size:48px;background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px"></i>
+            <h3 style="font-size:20px;font-weight:800;margin-bottom:8px">Ready to Publish</h3>
+            <p style="color:var(--text-secondary);max-width:400px;margin:0 auto 24px">
+              All teams have been formed and employees assigned. Publishing will notify all team members and make the project officially active.
+            </p>
+            <button class="btn btn-primary btn-lg" onclick="publishProject()">
+              <i class="fa-solid fa-paper-plane"></i> Publish Assignments
+            </button>
+          </div>
+          <div id="publish-done-state" style="display:none">
+            <i class="fa-solid fa-circle-check" style="font-size:64px;color:var(--accent-green);margin-bottom:16px"></i>
+            <h3 style="font-size:22px;font-weight:800;margin-bottom:8px;color:var(--accent-green)">Project Live!</h3>
+            <p style="color:var(--text-secondary)">All employees have been notified. Project is now active.</p>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- PM Employees view -->
+      <section class="view" id="view-pm-employees">
+        <div class="page-header"><div class="page-header-left"><h1>Employee Directory</h1></div></div>
+        <div class="emp-grid" id="pm-emp-grid"><div class="empty-state"><div class="spinner"></div></div></div>
+      </section>
+
+
+      <!-- ════════════════════════════════════════
+           TEAM LEAD VIEWS
+           ════════════════════════════════════════ -->
+
+      <section class="view" id="view-tl-dashboard">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1 id="tl-greeting">Team Lead Dashboard</h1>
+            <p>Monitor your team and sprint progress</p>
+          </div>
+        </div>
+        <div id="tl-team-cards" style="display:flex;flex-direction:column;gap:24px">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-tl-team">
+        <div class="page-header"><div class="page-header-left"><h1>My Team</h1><p>Team member profiles and workload</p></div></div>
+        <div class="emp-grid" id="tl-team-grid"><div class="empty-state"><div class="spinner"></div></div></div>
+      </section>
+
+      <section class="view" id="view-tl-tasks">
+        <div class="page-header">
+          <div class="page-header-left"><h1>Sprint Tasks</h1><p>Manage and assign tasks for your team</p></div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-create-task')"><i class="fa-solid fa-plus"></i> New Task</button>
+          </div>
+        </div>
+        <div class="kanban-board" id="tl-kanban-board"></div>
+      </section>
+
+
+      <!-- ════════════════════════════════════════
+           EMPLOYEE VIEWS
+           ════════════════════════════════════════ -->
+
+      <section class="view" id="view-emp-overview">
+        <div class="page-header">
+          <div class="page-header-left">
+            <h1 id="emp-greeting">Welcome Back!</h1>
+            <p>Your project assignments and upcoming tasks</p>
+          </div>
+        </div>
+        <!-- My Assignment Card -->
+        <div id="emp-assignment-card" class="mb-24">
+          <div class="empty-state card">
+            <i class="fa-solid fa-user-check" style="font-size:48px;color:var(--text-muted)"></i>
+            <h3>Not Yet Assigned</h3>
+            <p>You haven't been assigned to a project yet.</p>
+          </div>
+        </div>
+        <!-- My Tasks Summary -->
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><i class="fa-solid fa-list-check"></i> My Tasks</div></div>
+            <div id="emp-tasks-summary"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><i class="fa-solid fa-chart-bar"></i> My Performance</div></div>
+            <div id="emp-performance"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-emp-tasks">
+        <div class="page-header"><div class="page-header-left"><h1>My Tasks</h1></div></div>
+        <div id="emp-tasks-list" style="display:flex;flex-direction:column;gap:12px">
+          <div class="empty-state"><div class="spinner"></div></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-emp-profile">
+        <div class="page-header">
+          <div class="page-header-left"><h1>My Profile</h1></div>
+          <div class="page-header-actions">
+            <button class="btn btn-primary" onclick="saveEmpProfile()"><i class="fa-solid fa-save"></i> Save</button>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-header"><div class="card-title"><i class="fa-solid fa-user"></i> Profile Info</div></div>
+            <div style="display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;gap:16px;align-items:center;padding-bottom:16px;border-bottom:1px solid var(--border)">
+                <img id="emp-profile-photo" src="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid var(--border-active)" onerror="this.style.display='none'"/>
+                <div>
+                  <div style="font-size:18px;font-weight:800" id="emp-profile-name">—</div>
+                  <div style="font-size:13px;color:var(--text-muted)" id="emp-profile-role">—</div>
+                  <div style="font-size:12px;color:var(--accent-blue);margin-top:4px" id="emp-profile-dept">—</div>
+                </div>
+              </div>
+              <div class="form-group"><label class="form-label">Skills (semicolon separated)</label><textarea class="form-control" id="emp-skills-input" rows="3"></textarea></div>
+              <div class="form-group"><label class="form-label">Certifications</label><textarea class="form-control" id="emp-cert-input" rows="2" placeholder="e.g. AWS Solutions Architect; PMP"></textarea></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title"><i class="fa-solid fa-chart-simple"></i> Metrics</div></div>
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:12px;color:var(--text-secondary)">Current Workload</span>
+                  <span style="font-size:12px;font-weight:700" id="emp-workload-pct">—%</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="emp-workload-bar"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                  <span style="font-size:12px;color:var(--text-secondary)">Performance Score</span>
+                  <span style="font-size:12px;font-weight:700;color:var(--accent-green)" id="emp-perf-pct">—</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill green" id="emp-perf-bar"></div></div>
+              </div>
+              <div class="info-list">
+                <div class="info-item"><span class="info-key">Experience</span><span class="info-val" id="emp-experience">—</span></div>
+                <div class="info-item"><span class="info-key">Completed Projects</span><span class="info-val" id="emp-completed-projects">—</span></div>
+                <div class="info-item"><span class="info-key">Department</span><span class="info-val" id="emp-department">—</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /content-area -->
+  </main><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════════
+     MODALS
+     ════════════════════════════════════════════════════ -->
+
+<!-- Create Project Modal (Admin) -->
+<div class="modal-overlay" id="modal-create-project" onclick="handleOverlayClick(event,'modal-create-project')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-folder-plus"></i> Create New Project</div>
+      <button class="modal-close" onclick="closeModal('modal-create-project')"><i class="fa-solid fa-xmark"></i></button>
     </div>
-  </div>
-
-  <!-- ════ MODAL DIALOGS ════ -->
-
-  <!-- 1. CREATE/EDIT PROJECT MODAL -->
-  <div class="modal" id="proj-modal">
-    <div class="modal-content glass">
-      <div class="modal-header">
-        <h3 id="proj-modal-title">Create New Project</h3>
-        <button class="close-btn" onclick="closeModal('proj-modal')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="proj-form" onsubmit="handleProjectSubmit(event)">
-        <input type="hidden" id="proj-form-id"/>
-        <div class="form-group">
-          <label for="proj-form-name">Project Name *</label>
-          <input type="text" id="proj-form-name" required placeholder="e.g. E-Commerce Refactoring"/>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label class="form-label">Project Name *</label>
+          <input class="form-control" id="cp-name" placeholder="e.g. Hospital Management System"/>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Description *</label>
+          <textarea class="form-control" id="cp-desc" rows="3" placeholder="Describe the project objectives…"></textarea>
         </div>
         <div class="form-group">
-          <label for="proj-form-desc">Description</label>
-          <textarea id="proj-form-desc" rows="3" placeholder="Brief context..."></textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="proj-form-deadline">Deadline</label>
-            <input type="date" id="proj-form-deadline"/>
-          </div>
-          <div class="form-group">
-            <label for="proj-form-priority">Priority</label>
-            <select id="proj-form-priority">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="proj-form-duration">Estimated Duration</label>
-            <input type="text" id="proj-form-duration" placeholder="e.g. 3 months"/>
-          </div>
-          <div class="form-group">
-            <label for="proj-form-budget">Budget ($)</label>
-            <input type="text" id="proj-form-budget" placeholder="e.g. 50,000"/>
-          </div>
+          <label class="form-label">Client / Organisation *</label>
+          <input class="form-control" id="cp-client" placeholder="e.g. Apollo Hospitals"/>
         </div>
         <div class="form-group">
-          <label for="proj-form-skills">Required Skills (Semicolon separated)</label>
-          <input type="text" id="proj-form-skills" placeholder="LLM;NLP;API Integration;Python"/>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="proj-form-roles">Preferred Roles (Comma separated)</label>
-            <input type="text" id="proj-form-roles" placeholder="DevOps Engineer, Frontend Developer"/>
-          </div>
-          <div class="form-group">
-            <label for="proj-form-teamsize">Team Size Target</label>
-            <input type="number" id="proj-form-teamsize" value="2"/>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" onclick="closeModal('proj-modal')">Cancel</button>
-          <button class="btn btn-primary" type="submit">Save Project</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 2. ADD/EDIT EMPLOYEE PROFILE MODAL -->
-  <div class="modal" id="emp-modal">
-    <div class="modal-content glass">
-      <div class="modal-header">
-        <h3 id="emp-modal-title">Add Employee Profile</h3>
-        <button class="close-btn" onclick="closeModal('emp-modal')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="emp-form" onsubmit="handleEmployeeSubmit(event)">
-        <input type="hidden" id="emp-form-id"/>
-        <div class="form-group">
-          <label for="emp-form-name">Full Name *</label>
-          <input type="text" id="emp-form-name" required placeholder="e.g. Alan Turing"/>
-        </div>
-        <div class="form-group">
-          <label for="emp-form-email">Email Address *</label>
-          <input type="email" id="emp-form-email" required placeholder="alan@assigniq.com"/>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="emp-form-dept">Department</label>
-            <select id="emp-form-dept">
-              <option value="Engineering">Engineering</option>
-              <option value="Infrastructure">Infrastructure</option>
-              <option value="Data Science">Data Science</option>
-              <option value="Product">Product Management</option>
-              <option value="Design">Design</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="emp-form-exp">Experience (Years)</label>
-            <input type="number" id="emp-form-exp" value="2" min="0"/>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="emp-form-workload">Current Workload (%)</label>
-            <input type="number" id="emp-form-workload" value="40" min="0" max="100"/>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="emp-form-skills">Skills (Semicolon separated)</label>
-          <input type="text" id="emp-form-skills" placeholder="Python;LLMs;PyTorch;LangChain"/>
-        </div>
-        <div class="form-group">
-          <label for="emp-form-certs">Certifications (Comma separated)</label>
-          <input type="text" id="emp-form-certs" placeholder="AWS Solution Architect, PMP"/>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" onclick="closeModal('emp-modal')">Cancel</button>
-          <button class="btn btn-primary" type="submit">Save Profile</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 3. CREATE/EDIT TASK MODAL -->
-  <div class="modal" id="task-modal">
-    <div class="modal-content glass">
-      <div class="modal-header">
-        <h3 id="task-modal-title">Create Task</h3>
-        <button class="close-btn" onclick="closeModal('task-modal')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="task-form" onsubmit="handleTaskSubmit(event)">
-        <input type="hidden" id="task-form-id"/>
-        <div class="form-group">
-          <label for="task-form-name">Task Name *</label>
-          <input type="text" id="task-form-name" required placeholder="e.g. Integrate payment API"/>
-        </div>
-        <div class="form-group">
-          <label for="task-form-desc">Description</label>
-          <textarea id="task-form-desc" rows="3" placeholder="Context details..."></textarea>
-        </div>
-        <div class="form-group">
-          <label for="task-form-assign">Assign To</label>
-          <select id="task-form-assign">
-            <option value="">Unassigned</option>
-            <!-- Loaded Dynamically -->
+          <label class="form-label">Priority</label>
+          <select class="form-control" id="cp-priority">
+            <option>Critical</option><option>High</option><option selected>Medium</option><option>Low</option>
           </select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="task-form-priority">Priority</label>
-            <select id="task-form-priority">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="task-form-deadline">Deadline</label>
-            <input type="date" id="task-form-deadline"/>
-          </div>
+        <div class="form-group">
+          <label class="form-label">Budget</label>
+          <input class="form-control" id="cp-budget" placeholder="e.g. $120,000"/>
         </div>
         <div class="form-group">
-          <label for="task-form-hours">Estimated Hours</label>
-          <input type="number" id="task-form-hours" value="8" min="1"/>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" onclick="closeModal('task-modal')">Cancel</button>
-          <button class="btn btn-primary" type="submit">Save Task</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 4. CREATE USER CONTROL MODAL (ADMIN ONLY) -->
-  <div class="modal" id="user-modal">
-    <div class="modal-content glass">
-      <div class="modal-header">
-        <h3 id="user-modal-title">Add User Control</h3>
-        <button class="close-btn" onclick="closeModal('user-modal')"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <form id="user-form" onsubmit="handleUserSubmit(event)">
-        <input type="hidden" id="user-form-id"/>
-        <div class="form-group">
-          <label for="user-form-name">Full Name *</label>
-          <input type="text" id="user-form-name" required placeholder="e.g. John Doe"/>
+          <label class="form-label">Deadline (days from today)</label>
+          <input class="form-control" type="number" id="cp-deadline" value="60" min="1"/>
         </div>
         <div class="form-group">
-          <label for="user-form-email">Email Address *</label>
-          <input type="email" id="user-form-email" required placeholder="john@assigniq.com"/>
+          <label class="form-label">Estimated Duration</label>
+          <input class="form-control" id="cp-duration" placeholder="e.g. 3 months"/>
         </div>
         <div class="form-group">
-          <label for="user-form-pass">Password *</label>
-          <input type="password" id="user-form-pass" placeholder="Enter password (default: employee123)"/>
+          <label class="form-label">Team Size</label>
+          <input class="form-control" type="number" id="cp-teamsize" value="8" min="1"/>
         </div>
-        <div class="form-group">
-          <label for="user-form-role">System Role *</label>
-          <select id="user-form-role">
-            <option value="employee" selected>Employee</option>
-            <option value="project_manager">Project Manager</option>
-            <option value="admin">System Admin</option>
+        <div class="form-group form-full">
+          <label class="form-label">Required Skills (semicolon separated)</label>
+          <input class="form-control" id="cp-skills" placeholder="Python;React;PostgreSQL;Docker"/>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Preferred Technologies</label>
+          <input class="form-control" id="cp-tech" placeholder="LangChain;FastAPI;Kubernetes"/>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Assign Project Manager</label>
+          <select class="form-control" id="cp-pm">
+            <option value="">— Select Project Manager —</option>
           </select>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" onclick="closeModal('user-modal')">Cancel</button>
-          <button class="btn btn-primary" type="submit">Create User</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- 5. TASK DELIVERABLE UPLOAD MODAL -->
-  <div class="modal" id="deliverable-modal">
-    <div class="modal-content glass">
-      <div class="modal-header">
-        <h3>Upload Task Deliverable</h3>
-        <button class="close-btn" onclick="closeModal('deliverable-modal')"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <form id="deliverable-form" onsubmit="handleDeliverableSubmit(event)">
-        <input type="hidden" id="deliverable-form-task-id"/>
-        <div class="form-group">
-          <label for="deliverable-file">Select File (PDF, ZIP, Code, Document)</label>
-          <input type="file" id="deliverable-file" required/>
-        </div>
-        <div class="form-group">
-          <label for="deliverable-comment">Comment / Completion Note</label>
-          <textarea id="deliverable-comment" rows="3" placeholder="Provide work details..."></textarea>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" type="button" onclick="closeModal('deliverable-modal')">Cancel</button>
-          <button class="btn btn-primary" type="submit">Submit Deliverable</button>
-        </div>
-      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-project')">Cancel</button>
+      <button class="btn btn-primary" onclick="createProject()"><i class="fa-solid fa-plus"></i> Create Project</button>
     </div>
   </div>
+</div>
 
-  <!-- jsPDF & Auth/App JS files -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="/static/auth.js"></script>
-  <script src="/static/app.js"></script>
+<!-- Add Module Modal -->
+<div class="modal-overlay" id="modal-add-module" onclick="handleOverlayClick(event,'modal-add-module')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-sitemap"></i> Add Module</div>
+      <button class="modal-close" onclick="closeModal('modal-add-module')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Module Name *</label>
+        <input class="form-control" id="mod-name" placeholder="e.g. Authentication Module"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-control" id="mod-desc" rows="2"></textarea>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Estimated Duration</label>
+          <input class="form-control" id="mod-duration" placeholder="e.g. 2 weeks"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Complexity</label>
+          <select class="form-control" id="mod-complexity">
+            <option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option>
+          </select>
+        </div>
+        <div class="form-group form-full">
+          <label class="form-label">Required Skills</label>
+          <input class="form-control" id="mod-skills" placeholder="React;Node.js;JWT"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-module')">Cancel</button>
+      <button class="btn btn-primary" onclick="addModule()"><i class="fa-solid fa-plus"></i> Add Module</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Team Modal -->
+<div class="modal-overlay" id="modal-add-team" onclick="handleOverlayClick(event,'modal-add-team')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-people-roof"></i> Create Team</div>
+      <button class="modal-close" onclick="closeModal('modal-add-team')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Team Name *</label>
+        <input class="form-control" id="team-name" placeholder="e.g. Team Alpha"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Assigned Module</label>
+        <select class="form-control" id="team-module">
+          <option value="">— No specific module —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Required Skills</label>
+        <input class="form-control" id="team-skills" placeholder="React;Node.js;PostgreSQL"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Team Size (including lead)</label>
+        <input class="form-control" type="number" id="team-size" value="5" min="2"/>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-add-team')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTeam()"><i class="fa-solid fa-plus"></i> Create Team</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lead Selection Modal (per team) -->
+<div class="modal-overlay" id="modal-select-lead" onclick="handleOverlayClick(event,'modal-select-lead')">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-crown"></i> Select Team Lead — <span id="lead-modal-team-name">Team</span></div>
+      <button class="modal-close" onclick="closeModal('modal-select-lead')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+        AI has ranked employees by fit score. Select one to submit for Admin approval.
+      </p>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>#</th><th>Employee</th><th>Department</th><th>Experience</th><th>Performance</th><th>Workload</th><th>Projects</th><th>Skill Match</th><th>Confidence</th><th>Select</th></tr></thead>
+          <tbody id="lead-candidates-tbody"><tr><td colspan="10" class="text-center" style="padding:32px"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Reason for selection (shown to Admin)</label>
+        <textarea class="form-control" id="lead-selection-reason" rows="2" placeholder="Explain why you selected this candidate…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-select-lead')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitLeadSelection()" id="btn-submit-lead" disabled><i class="fa-solid fa-paper-plane"></i> Submit for Approval</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Approval Detail Modal -->
+<div class="modal-overlay" id="modal-approval-detail" onclick="handleOverlayClick(event,'modal-approval-detail')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-shield-check"></i> Team Lead Approval Request</div>
+      <button class="modal-close" onclick="closeModal('modal-approval-detail')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="approval-detail-body">
+      <div class="empty-state"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer" id="approval-detail-footer" style="display:none">
+      <div class="form-group" style="flex:1">
+        <input class="form-control" id="approval-comment-input" placeholder="Add a comment (required if rejecting)…"/>
+      </div>
+      <button class="btn btn-danger" onclick="decideApproval('reject')"><i class="fa-solid fa-xmark"></i> Reject</button>
+      <button class="btn btn-success" onclick="decideApproval('approve')"><i class="fa-solid fa-check"></i> Approve</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI Assignment Detail Modal -->
+<div class="modal-overlay" id="modal-ai-detail" onclick="handleOverlayClick(event,'modal-ai-detail')">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-robot"></i> AI Assignment Detail</div>
+      <button class="modal-close" onclick="closeModal('modal-ai-detail')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="ai-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-ai-detail')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Replace Employee Modal -->
+<div class="modal-overlay" id="modal-replace-emp" onclick="handleOverlayClick(event,'modal-replace-emp')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-user-pen"></i> Replace Employee</div>
+      <button class="modal-close" onclick="closeModal('modal-replace-emp')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Select a replacement for the assigned slot:</p>
+      <div class="form-group">
+        <label class="form-label">Replacement Employee</label>
+        <select class="form-control" id="replace-emp-select"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-replace-emp')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmReplaceEmployee()">Replace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Task Modal (Team Lead) -->
+<div class="modal-overlay" id="modal-create-task" onclick="handleOverlayClick(event,'modal-create-task')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-plus-circle"></i> Create Task</div>
+      <button class="modal-close" onclick="closeModal('modal-create-task')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Task Name *</label><input class="form-control" id="task-name-input" placeholder="e.g. Build login API"/></div>
+      <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="task-desc-input" rows="2"></textarea></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Assign To</label>
+          <select class="form-control" id="task-assign-input"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <select class="form-control" id="task-priority-input">
+            <option value="critical">Critical</option><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deadline</label>
+          <input class="form-control" type="date" id="task-deadline-input"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estimated Hours</label>
+          <input class="form-control" type="number" id="task-hours-input" value="8"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="createTask()"><i class="fa-solid fa-plus"></i> Create Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create User Modal (Admin) -->
+<div class="modal-overlay" id="modal-create-user" onclick="handleOverlayClick(event,'modal-create-user')">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <div class="modal-title"><i class="fa-solid fa-user-plus"></i> Add User</div>
+      <button class="modal-close" onclick="closeModal('modal-create-user')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Full Name *</label><input class="form-control" id="cu-name" placeholder="e.g. John Doe"/></div>
+      <div class="form-group"><label class="form-label">Email *</label><input class="form-control" id="cu-email" type="email" placeholder="john@assigniq.com"/></div>
+      <div class="form-group"><label class="form-label">Password *</label><input class="form-control" id="cu-pass" type="password" placeholder="Min 6 characters"/></div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select class="form-control" id="cu-role">
+          <option value="admin">Admin</option>
+          <option value="project_manager">Project Manager</option>
+          <option value="team_lead">Team Lead</option>
+          <option value="employee">Employee</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-create-user')">Cancel</button>
+      <button class="btn btn-primary" onclick="createUser()"><i class="fa-solid fa-plus"></i> Create User</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="/static/app.js"></script>
 </body>
 </html>

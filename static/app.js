@@ -1132,26 +1132,32 @@ function renderReviewAssignments(assignments) {
   
   if (!assignments.length) {
     container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-robot"></i><p>No team assignments generated yet. Click 'Generate Team Assignment'.</p></div>`;
-    document.getElementById('pm-submit-admin-wrap').style.display = 'none';
+    const wrap = document.getElementById('pm-submit-admin-wrap');
+    if (wrap) wrap.style.display = 'none';
     return;
   }
-  // Group by team/module name
+
+  // Build a lookup: globalIdx → assignment, keeping team grouping
   const byTeam = {};
-  assignments.forEach(a => {
+  assignments.forEach((a, globalIdx) => {
     const key = a.team_name || "Unassigned Module Team";
     if (!byTeam[key]) byTeam[key] = [];
-    byTeam[key].push(a);
+    byTeam[key].push({ ...a, _globalIdx: globalIdx });
   });
+
+  const acceptedCount = assignments.filter(a => a.accepted).length;
 
   container.innerHTML = Object.entries(byTeam).map(([teamName, members]) => `
     <div class="card mb-16">
       <div class="card-header" style="background: rgba(255,255,255,0.01); padding: 12px 16px;">
         <div class="card-title"><i class="fa-solid fa-people-group"></i> ${esc(teamName)} — ${esc(members[0].assigned_module)}</div>
-        <span class="badge badge-purple">${members.length} Employees Assigned</span>
+        <span class="badge badge-purple">${members.filter(m => m.accepted).length}/${members.length} Selected</span>
       </div>
       <div style="display:flex; flex-direction:column; gap:12px; padding: 16px;">
-        ${members.map((a, idx) => `
-          <div class="ai-decision-card" style="margin-bottom:0; border: 1px solid var(--border); padding: 16px; border-radius: 8px; background: rgba(255,255,255,0.01);">
+        ${members.map((a) => {
+          const gi = a._globalIdx;
+          return `
+          <div class="ai-decision-card" id="assign-card-${gi}" style="margin-bottom:0; border: 1px solid ${a.accepted ? 'var(--accent-green)' : 'var(--border)'}; padding: 16px; border-radius: 8px; background: ${a.accepted ? 'rgba(56,161,105,0.06)' : 'rgba(255,255,255,0.01)'}; transition: all 0.25s ease;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
               <div style="display:flex; gap:12px; align-items:center;">
                 <img style="width:36px; height:36px; border-radius:50%; object-fit:cover;" src="https://ui-avatars.com/api/?name=${encodeURIComponent(a.employee_name)}&background=6C63FF&color=fff"/>
@@ -1162,8 +1168,8 @@ function renderReviewAssignments(assignments) {
               </div>
               <div style="text-align:right">
                 <div class="ai-metric-label">Performance</div>
-                <div class="ai-metric-track"><div class="ai-metric-fill green" style="width:${a.performance}%"></div></div>
-                <div class="ai-metric-val">${a.performance}%</div>
+                <div class="ai-metric-track"><div class="ai-metric-fill green" style="width:${a.performance || 85}%"></div></div>
+                <div class="ai-metric-val">${a.performance || 85}%</div>
               </div>
             </div>
 
@@ -1171,45 +1177,75 @@ function renderReviewAssignments(assignments) {
               ${(a.decision_trace || []).map(t => `<div class="ai-trace-item"><i class="fa-solid fa-check-circle"></i>${esc(t)}</div>`).join('')}
             </div>
 
-            ${a.alternative ? `
-              <div class="ai-alternative">
-                <div class="ai-alt-label">Alternative</div>
-                <div class="ai-alt-name">${esc(a.alternative.employee_name || 'None')}</div>
-                <div class="ai-alt-reason">${esc(a.alternative.reason_not_selected || '')}</div>
-              </div>
-            ` : ''}
-
-            <div class="ai-card-actions">
+            <div class="ai-card-actions" style="margin-top:12px;">
               ${a.accepted ? `
-                <span class="badge badge-success" style="padding: 6px 12px; font-size:12.5px; border-radius: 6px;">
+                <span class="badge badge-success" style="padding: 8px 16px; font-size:13px; border-radius: 8px; display:inline-flex; align-items:center; gap:6px;">
                   <i class="fa-solid fa-circle-check"></i> Selected
                 </span>
               ` : `
-                <button class="btn btn-ghost btn-sm" onclick="openReplaceModal(${JSON.stringify(idx)}, '${a.team_id}')">
+                <button class="btn btn-ghost btn-sm" onclick="openReplaceModal(${gi}, '${a.team_id}')">
                   <i class="fa-solid fa-user-pen"></i> Replace
                 </button>
-                <button class="btn btn-success btn-sm" onclick="acceptAssignment(${JSON.stringify(idx)})">
+                <button class="btn btn-success btn-sm" onclick="acceptAssignment(${gi})">
                   <i class="fa-solid fa-check"></i> Accept
                 </button>
               `}
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     </div>
   `).join('');
+
+  // Always show the Next button at the bottom after assignments load
+  const wrap = document.getElementById('pm-submit-admin-wrap');
+  if (wrap) {
+    wrap.style.display = 'block';
+    wrap.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:12px; padding: 20px; background: rgba(108,99,255,0.06); border: 1px solid rgba(108,99,255,0.2); border-radius: 12px; margin-top: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:800; font-size:15px; margin-bottom:4px;">Review Complete</div>
+            <div style="font-size:13px; color:var(--text-secondary);">
+              ${acceptedCount} of ${assignments.length} assignments confirmed. 
+              ${acceptedCount < assignments.length ? `<span style="color:var(--accent-amber);">${assignments.length - acceptedCount} pending review.</span>` : `<span style="color:var(--accent-green);">All confirmed!</span>`}
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveAndProceedPublish()" style="padding: 12px 28px; font-size:14px; display:flex; align-items:center; gap:8px;">
+            Next <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }
 }
 
 async function saveAndProceedPublish() {
   if (!currentAIAssignments.length) { toast('Run AI assignment first.', 'warning'); return; }
+  
+  const btn = document.querySelector('#pm-submit-admin-wrap button.btn-primary');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Submitting…'; }
+  
   try {
-    await fetch(`/api/projects/${currentProject.project_id}/save-assignments`, {
+    // 1. Save assignments
+    const saveResp = await fetch(`/api/projects/${currentProject.project_id}/save-assignments`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ assignments: currentAIAssignments })
     });
-    toast('Assignments saved! Ready to publish.', 'success');
+    if (!saveResp.ok) { toast('Failed to save assignments.', 'error'); return; }
+
+    // 2. Submit to admin for approval (advances workflow_status to awaiting_admin_approval)
+    const submitResp = await fetch(`/api/projects/${currentProject.project_id}/submit-to-admin`, {
+      method: 'POST'
+    });
+    if (!submitResp.ok) { toast('Failed to submit to admin.', 'error'); return; }
+
+    toast('Plan submitted to Admin for approval! ✅', 'success');
     await loadWorkflowView(currentProject.project_id);
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error(e);
+    toast('Network error submitting plan.', 'error');
+  }
 }
 
 async function publishProject() {

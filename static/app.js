@@ -161,64 +161,76 @@ async function loadViewData(viewId) {
 // ═══════════════════════════════════════════════════
 async function loadAdminOverview() {
   try {
-    const [metricsResp, projectsResp, pendingResp] = await Promise.all([
+    const [metricsResp, pendingResp] = await Promise.all([
       fetch('/api/metrics/v2'),
-      fetch('/api/projects'),
       fetch('/api/admin/pending-projects')
     ]);
-    const metrics  = await metricsResp.json();
-    allProjects    = await projectsResp.json();
-    const pending  = await pendingResp.json();
 
-    const k = metrics.kpis;
-    document.getElementById('kpi-total-projects').textContent    = k.total_projects;
-    document.getElementById('kpi-active-projects').textContent   = k.active_projects;
-    document.getElementById('kpi-pending-approvals').textContent = pending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
-    document.getElementById('kpi-total-employees').textContent   = k.total_employees;
-    document.getElementById('kpi-total-teams').textContent       = k.total_teams;
-    document.getElementById('kpi-avg-perf').textContent          = k.avg_performance + '%';
+    if (!metricsResp.ok || !pendingResp.ok) {
+      console.error('Admin overview fetch failed', metricsResp.status, pendingResp.status);
+      toast('Failed to load dashboard data.', 'error');
+      return;
+    }
+
+    const metrics = await metricsResp.json();
+    allProjects   = await pendingResp.json();   // use enriched list for pipeline too
+
+    const k = metrics.kpis || {};
+    document.getElementById('kpi-total-projects').textContent    = k.total_projects    ?? allProjects.length;
+    document.getElementById('kpi-active-projects').textContent   = k.active_projects   ?? allProjects.filter(p => p.workflow_status === 'active').length;
+    document.getElementById('kpi-pending-approvals').textContent = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    document.getElementById('kpi-total-employees').textContent   = k.total_employees   ?? '—';
+    document.getElementById('kpi-total-teams').textContent       = k.total_teams       ?? '—';
+    document.getElementById('kpi-avg-perf').textContent          = (k.avg_performance != null ? k.avg_performance + '%' : '—');
 
     // Update approval count badge in sidebar
-    const pendingCount = pending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    const pendingCount = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
     const badge = document.getElementById('approval-count-badge');
     if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
 
     // Recent projects pipeline
     const recentProjs = allProjects.slice(-6).reverse();
     const projListEl  = document.getElementById('admin-projects-list');
-    if (recentProjs.length === 0) {
-      projListEl.innerHTML = `<div class="empty-state" style="padding:24px"><i class="fa-solid fa-folder-open"></i><p>No projects yet. Click <strong>New Project</strong> to get started.</p></div>`;
-    } else {
-      projListEl.innerHTML = recentProjs.map(p => `
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${esc(p.client || '—')} • PM: ${esc(p.assigned_pm || 'Unassigned')}</div>
+    if (projListEl) {
+      if (recentProjs.length === 0) {
+        projListEl.innerHTML = `<div class="empty-state" style="padding:24px"><i class="fa-solid fa-folder-open"></i><p>No projects yet. Click <strong>New Project</strong> to get started.</p></div>`;
+      } else {
+        projListEl.innerHTML = recentProjs.map(p => `
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
+              <div style="font-size:11px;color:var(--text-muted)">${esc(p.client || '—')} • PM: ${esc(p.assigned_pm || 'Unassigned')}</div>
+            </div>
+            <span class="badge ${wsBadgeClass(p.workflow_status)}">${wsLabel(p.workflow_status)}</span>
+            <span class="badge priority-${p.priority}">${p.priority || '—'}</span>
           </div>
-          <span class="badge ${wsBadgeClass(p.workflow_status)}">${wsLabel(p.workflow_status)}</span>
-          <span class="badge priority-${p.priority}">${p.priority}</span>
-        </div>
-      `).join('');
+        `).join('');
+      }
     }
 
     // Plan approvals widget — projects waiting for Admin sign-off
     const appWidget = document.getElementById('admin-approvals-widget');
-    const awaitingPlans = pending.filter(p => p.workflow_status === 'awaiting_admin_approval');
-    if (awaitingPlans.length === 0) {
-      appWidget.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>No pending plan approvals</p></div>`;
-    } else {
-      appWidget.innerHTML = awaitingPlans.slice(0, 4).map(p => `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openApprovalDetail('${p.project_id}')">
-          <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6C63FF,#4F9AFF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">${esc(p.project_name)[0]}</div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
-            <div style="font-size:11px;color:var(--text-muted)">PM: ${esc(p.assigned_pm || '—')} • Awaiting your approval</div>
+    if (appWidget) {
+      const awaitingPlans = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval');
+      if (awaitingPlans.length === 0) {
+        appWidget.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>No pending plan approvals</p></div>`;
+      } else {
+        appWidget.innerHTML = awaitingPlans.slice(0, 4).map(p => `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openApprovalDetail('${p.project_id}')">
+            <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6C63FF,#4F9AFF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">${esc(p.project_name)[0]}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
+              <div style="font-size:11px;color:var(--text-muted)">PM: ${esc(p.assigned_pm || '—')} • Awaiting your approval</div>
+            </div>
+            <span class="badge badge-amber">Review</span>
           </div>
-          <span class="badge badge-amber">Review</span>
-        </div>
-      `).join('');
+        `).join('');
+      }
     }
-  } catch(e) { console.error(e); }
+  } catch(e) {
+    console.error('loadAdminOverview error:', e);
+    toast('Error loading admin overview.', 'error');
+  }
 }
 
 function renderWorkloadChart(data) {

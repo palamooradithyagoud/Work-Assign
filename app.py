@@ -274,6 +274,34 @@ def admin_user_detail(id):
     return jsonify({"error": "User not found"}), 404
 
 # ──────────────────────────────────────────────
+# ADMIN: PENDING PROJECTS (for overview + approvals)
+# ──────────────────────────────────────────────
+@app.route("/api/admin/pending-projects", methods=["GET"])
+def api_admin_pending_projects():
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    all_projects = db.get_all("projects")
+    status_filter = request.args.get("status", "")
+    if status_filter:
+        filtered = [p for p in all_projects if p.get("workflow_status") == status_filter]
+    else:
+        # Return all projects so the frontend can filter by workflow_status itself
+        filtered = all_projects
+    # Enrich with PM name for display
+    all_users = db.get_all("users")
+    user_map = {u["user_id"]: u.get("full_name", u.get("email", "—")) for u in all_users}
+    for p in filtered:
+        pm_id = p.get("assigned_pm")
+        if pm_id and pm_id in user_map:
+            p["assigned_pm_name"] = user_map[pm_id]
+        else:
+            p["assigned_pm_name"] = pm_id or "Unassigned"
+        # Use name for display if assigned_pm is an ID
+        if pm_id and pm_id in user_map:
+            p["assigned_pm"] = user_map[pm_id]
+    return jsonify(filtered)
+
+# ──────────────────────────────────────────────
 # PROJECTS MANAGEMENT API
 # ──────────────────────────────────────────────
 @app.route("/api/projects", methods=["GET", "POST"])

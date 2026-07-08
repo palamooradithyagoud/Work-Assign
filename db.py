@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.bpzpefonhzolyzqfhagn:ADITHYAGOUD%40789@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres")
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)

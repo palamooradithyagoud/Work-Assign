@@ -852,25 +852,46 @@ async function loadWorkflowView(projId, isAdmin = false) {
   try {
     const resp = await fetch(`/api/projects/${projId}/workflow`);
     const data = await resp.json();
+
+    if (!resp.ok) {
+      const errMsg = data?.error || `Server error ${resp.status}`;
+      console.error('Workflow API error:', errMsg, data);
+      toast(`Error loading workflow: ${errMsg}`, 'error');
+      return;
+    }
+
+    if (!data.project) {
+      console.error('Workflow API: missing project in response', data);
+      toast('Error loading workflow: no project data returned.', 'error');
+      return;
+    }
+
     currentProject = data.project;
 
-    // Fill header
-    document.getElementById('wf-proj-name').textContent     = currentProject.project_name;
-    document.getElementById('wf-proj-desc').textContent     = currentProject.description || '';
-    document.getElementById('wf-proj-priority').textContent = currentProject.priority || '—';
-    document.getElementById('wf-proj-priority').className   = `badge priority-${currentProject.priority}`;
-    document.getElementById('wf-proj-status').textContent   = wsLabel(currentProject.workflow_status);
-    document.getElementById('wf-proj-status').className     = `badge ${wsBadgeClass(currentProject.workflow_status)}`;
-    document.getElementById('wf-proj-client').textContent   = currentProject.client || '—';
-    document.getElementById('wf-proj-budget').textContent   = currentProject.budget || '—';
-    document.getElementById('wf-proj-duration').textContent = currentProject.estimated_duration || '—';
-    document.getElementById('wf-proj-teamsize').textContent = currentProject.team_size || '—';
-    document.getElementById('wf-proj-skills').textContent   = (currentProject.required_skills || '').replace(/;/g, ', ') || '—';
+    // Fill header (guard each element)
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const cls = (id, c)   => { const el = document.getElementById(id); if (el) el.className   = c; };
+
+    set('wf-proj-name',     currentProject.project_name || '—');
+    set('wf-proj-desc',     currentProject.description  || '');
+    set('wf-proj-priority', currentProject.priority     || '—');
+    cls('wf-proj-priority', `badge priority-${currentProject.priority}`);
+    set('wf-proj-status',   wsLabel(currentProject.workflow_status));
+    cls('wf-proj-status',   `badge ${wsBadgeClass(currentProject.workflow_status)}`);
+    set('wf-proj-client',   currentProject.client            || '—');
+    set('wf-proj-budget',   currentProject.budget            || '—');
+    set('wf-proj-duration', currentProject.estimated_duration || '—');
+    set('wf-proj-teamsize', currentProject.team_size         || '—');
+    set('wf-proj-skills',   (currentProject.required_skills || '').replace(/;/g, ', ') || '—');
 
     updateWorkflowStepper(currentProject.workflow_status);
     showWorkflowPanel(currentProject, data, isAdmin);
-  } catch(e) { console.error(e); toast('Error loading workflow.', 'error'); }
+  } catch(e) {
+    console.error('loadWorkflowView exception:', e);
+    toast('Error loading workflow.', 'error');
+  }
 }
+
 
 function updateWorkflowStepper(status) {
   const wsOrder = {

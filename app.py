@@ -1278,29 +1278,36 @@ def api_pm_review(id):
 def api_project_workflow(id):
     if "user_id" not in session:
         return jsonify({"error": "Unauthorized"}), 401
-    proj = db.get_by_id("projects", id)
-    if not proj:
-        return jsonify({"error": "Project not found"}), 404
-    modules  = db.get_where("modules", "project_id", id)
-    teams    = db.get_where("teams", "project_id", id)
-    team_ids = [t["team_id"] for t in teams]
-    members  = db.get_where_in("team_members", "team_id", team_ids) if team_ids else []
-    approvals = db.get_where("lead_approvals", "project_id", id)
-    
-    team_members_map = {tid: [] for tid in team_ids}
-    for m in members:
-        if m["team_id"] in team_members_map:
-            team_members_map[m["team_id"]].append(m)
-    for t in teams:
-        t["members"] = team_members_map.get(t["team_id"], [])
-    pm_user = db.get_by_id("users", proj.get("assigned_pm", "")) if proj.get("assigned_pm") else None
-    return jsonify({
-        "project": proj,
-        "pm": pm_user,
-        "modules": modules,
-        "teams": teams,
-        "lead_approvals": approvals
-    })
+    try:
+        proj = db.get_by_id("projects", id)
+        if not proj:
+            return jsonify({"error": "Project not found"}), 404
+        modules   = db.get_where("modules", "project_id", id)
+        teams     = db.get_where("teams", "project_id", id)
+        team_ids  = [t["team_id"] for t in teams]
+        members   = db.get_where_in("team_members", "team_id", team_ids) if team_ids else []
+        approvals = db.get_where("lead_approvals", "project_id", id)
+
+        team_members_map = {tid: [] for tid in team_ids}
+        for m in members:
+            if m["team_id"] in team_members_map:
+                team_members_map[m["team_id"]].append(m)
+        for t in teams:
+            t["members"] = team_members_map.get(t["team_id"], [])
+
+        pm_id   = (proj.get("assigned_pm") or "").strip()
+        pm_user = db.get_by_id("users", pm_id) if pm_id else None
+
+        return jsonify({
+            "project": proj,
+            "pm": pm_user,
+            "modules": modules,
+            "teams": teams,
+            "lead_approvals": approvals
+        })
+    except Exception as e:
+        print(f"[ERROR] api_project_workflow {id}: {e}")
+        return jsonify({"error": str(e)}), 500
 
 # ─── Modules ────────────────────────────────────────────────────────────────
 @app.route("/api/projects/<id>/modules", methods=["GET", "POST"])

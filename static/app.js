@@ -812,6 +812,7 @@ function updateWorkflowStepper(status) {
   const wsOrder = {
     'draft': 1,
     'pending_review': 1,
+    'pending_pm': 1,
     'ai_planning': 3,
     'ai_assigned': 4,
     'pm_reviewing': 5,
@@ -835,7 +836,7 @@ function showWorkflowPanel(proj, data, isAdmin) {
   panels.forEach(p => { const el = document.getElementById(p); if (el) el.style.display = 'none'; });
 
   const ws = proj.workflow_status || 'draft';
-  if (ws === 'draft' || ws === 'pending_review') {
+  if (ws === 'draft' || ws === 'pending_review' || ws === 'pending_pm') {
     showPanel('wf-panel-review');
     populateReviewPanel(proj);
   } else if (ws === 'ai_planning') {

@@ -309,7 +309,7 @@ def api_projects():
         "deadline_days": int(body.get("deadline_days", 30)) if body.get("deadline_days") else 30,
         "budget": body.get("budget", "").strip(),
         "assigned_pm": pm_id or None,
-        "workflow_status": "pending_review" if pm_id else "draft",
+        "workflow_status": "pending_pm" if pm_id else "draft",
         "status": "planning",
         "created_at": datetime.datetime.utcnow().isoformat() + "Z"
     }

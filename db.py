@@ -7,9 +7,19 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
 
+import re
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres")
+
+# Auto-adapt direct IPv6 Supabase hosts to IPv4 Pooler when running on Vercel
+if os.environ.get('VERCEL') and DATABASE_URL:
+    match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", DATABASE_URL)
+    if match:
+        project_ref = match.group(1)
+        # Convert to pooler format using ap-southeast-1 region (Singapore)
+        DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", "aws-0-ap-southeast-1.pooler.supabase.com:6543")
+        DATABASE_URL = DATABASE_URL.replace("postgresql://postgres:", f"postgresql://postgres.{project_ref}:")
 
 def get_conn():
     return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)

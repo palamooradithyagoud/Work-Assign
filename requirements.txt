@@ -4,3 +4,4 @@ groq
 pandas
 supabase==2.3.4
 gunicorn
+psycopg2-binary

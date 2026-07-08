@@ -3,6 +3,7 @@ import json
 import uuid
 import datetime
 import random
+import threading
 from flask import Flask, request, jsonify, send_from_directory, session
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -1848,19 +1849,21 @@ def api_admin_decision(id):
     comment = body.get("comment", "").strip()
     if decision not in ("approve", "reject"):
         return jsonify({"error": "decision must be approve or reject"}), 400
-        
+
     proj = db.get_by_id("projects", id)
     if not proj:
         return jsonify({"error": "Project not found"}), 404
-        
+
     new_status = "approved" if decision == "approve" else "rejected"
+
+    # ── 1. Update project status immediately ──────────────────────────────────
     db.update("projects", id, {
         "workflow_status": new_status,
         "status": "active" if decision == "approve" else "planning",
         "pm_comment": comment
     })
-    
-    # Notify PM
+
+    # ── 2. Notify PM immediately ───────────────────────────────────────────────
     pm_id = proj.get("assigned_pm")
     if pm_id:
         if decision == "approve":
@@ -1880,71 +1883,88 @@ def api_admin_decision(id):
             )
             notif_type = "error"
         db.add_notification(pm_id, title, msg, notif_type)
-        
+
+    db.log_action("PROJECT_ADMIN_DECISION",
+                  f"Admin {decision}d plan for '{proj['project_name']}'.",
+                  session.get("email"))
+
+    # ── 3. Return SUCCESS immediately — heavy work runs in background ──────────
     if decision == "approve":
-        # Create team members entries and send notification to each employee
-        ai_plan = proj.get("ai_plan") or {}
-        assignments = ai_plan.get("assignments", [])
-        
-        # Parse phases to create actual sprint tasks
-        timeline = ai_plan.get("estimated_timeline") or {}
-        phases = timeline.get("project_phases", [])
-        
-        # Keep track of generated teams to assign team lead
-        team_leads_assigned = set()
-        
-        for a in assignments:
-            team_id = a["team_id"]
-            is_first_in_team = team_id not in team_leads_assigned
-            if is_first_in_team:
-                team_leads_assigned.add(team_id)
-                db.update("teams", team_id, {"team_lead_id": a["employee_id"]})
-                
-            # 1. Insert into team_members table
-            db.insert("team_members", {
-                "id": a.get("id", str(uuid.uuid4())),
-                "team_id": team_id,
-                "employee_id": a["employee_id"],
-                "assigned_role": a["assigned_role"],
-                "assigned_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "ai_confidence": float(a["confidence_score"].replace("%","")) if a.get("confidence_score") else 85.0,
-                "ai_reason": a["reason_for_selection"],
-                "is_lead": is_first_in_team
-            })
-            
-            # 2. Notify employee with complete project/sprint info
-            emp_msg = (
-                f"Project Name: {proj['project_name']}\n"
-                f"Assigned Module: {a['assigned_module']}\n"
-                f"Assigned Role: {a['assigned_role']}\n"
-                f"Team Name: {a['team_name']}\n"
-                f"Reporting Project Manager: Marcus Aurelius (PM)\n"
-                f"Deadline: {proj.get('deadline_days', 30)} Days\n"
-                f"Priority: {proj.get('priority', 'Medium')}\n"
-                f"Task Summary: Build, test and deploy {a['assigned_module']}.\n"
-                f"Required Skills: {a.get('skill_match', 'Various')}\n"
-                f"Expected Deliverables: Zero bug build of functional modules."
-            )
-            db.add_notification(a["employee_id"], "Work Assignment Dispatched", emp_msg, "info")
-            
-            # 3. Auto-populate sprint tasks for this employee
-            for idx, phase in enumerate(phases[:3]):  # create 3 starter tasks
-                db.insert("tasks", {
-                    "id": f"task-{id}-{a['employee_id']}-{idx}",
-                    "project_id": id,
-                    "task_name": f"[{a['assigned_module']}] {phase['phase']} task",
-                    "description": f"Perform {phase['phase']} activities for the {a['assigned_module']}.",
-                    "assigned_to": a["employee_id"],
-                    "priority": proj.get("priority", "Medium").lower(),
-                    "deadline": (datetime.date.today() + datetime.timedelta(days=15)).isoformat(),
-                    "estimated_hours": 12,
-                    "status": "To Do",
-                    "comments": [],
-                    "progress_percent": 0,
-                    "created_at": datetime.datetime.utcnow().isoformat() + "Z"
-                })
-                
-    db.log_action("PROJECT_ADMIN_DECISION", f"Admin {decision}d plan for '{proj['project_name']}'.", session.get("email"))
+        def _background_setup(proj_snapshot, project_id):
+            try:
+                ai_plan = proj_snapshot.get("ai_plan") or {}
+                assignments = ai_plan.get("assignments", []) if isinstance(ai_plan, dict) else []
+                timeline = ai_plan.get("estimated_timeline") or {}
+                phases = timeline.get("project_phases", []) if isinstance(timeline, dict) else []
+
+                team_leads_assigned = set()
+                for a in assignments:
+                    try:
+                        team_id = a.get("team_id", "")
+                        emp_id  = a.get("employee_id", "")
+                        if not emp_id:
+                            continue
+
+                        is_first_in_team = team_id and team_id not in team_leads_assigned
+                        if is_first_in_team:
+                            team_leads_assigned.add(team_id)
+                            if team_id:
+                                db.update("teams", team_id, {"team_lead_id": emp_id})
+
+                        # Parse confidence score safely
+                        raw_conf = a.get("confidence_score", "85")
+                        try:
+                            ai_conf = float(str(raw_conf).replace("%", "").strip())
+                        except (ValueError, AttributeError):
+                            ai_conf = 85.0
+
+                        # Insert team member
+                        db.insert("team_members", {
+                            "id": str(uuid.uuid4()),
+                            "team_id": team_id,
+                            "employee_id": emp_id,
+                            "assigned_role": a.get("assigned_role", ""),
+                            "assigned_at": datetime.datetime.utcnow().isoformat() + "Z",
+                            "ai_confidence": ai_conf,
+                            "ai_reason": a.get("reason_for_selection", ""),
+                            "is_lead": bool(is_first_in_team)
+                        })
+
+                        # Notify employee
+                        emp_msg = (
+                            f"Project: {proj_snapshot.get('project_name', '')}\n"
+                            f"Module: {a.get('assigned_module', '')} | Role: {a.get('assigned_role', '')}\n"
+                            f"Team: {a.get('team_name', '')}\n"
+                            f"Deadline: {proj_snapshot.get('deadline_days', 30)} days | "
+                            f"Priority: {proj_snapshot.get('priority', 'Medium')}"
+                        )
+                        db.add_notification(emp_id, "Work Assignment Dispatched", emp_msg, "info")
+
+                        # Create up to 2 starter tasks (not 3) to reduce DB calls
+                        for idx, phase in enumerate(phases[:2]):
+                            try:
+                                phase_name = phase.get("phase", f"Phase {idx+1}") if isinstance(phase, dict) else str(phase)
+                                db.insert("tasks", {
+                                    "project_id": project_id,
+                                    "task_name": f"[{a.get('assigned_module','')}] {phase_name}",
+                                    "description": f"Complete {phase_name} for {a.get('assigned_module','')}",
+                                    "assigned_to": emp_id,
+                                    "priority": proj_snapshot.get("priority", "Medium"),
+                                    "deadline": (datetime.date.today() + datetime.timedelta(days=15)).isoformat(),
+                                    "estimated_hours": 12,
+                                    "status": "To Do",
+                                    "progress_percent": 0
+                                })
+                            except Exception:
+                                pass  # Skip task creation errors silently
+                    except Exception as ae:
+                        print(f"[BG] Assignment processing error: {ae}")
+            except Exception as e:
+                print(f"[BG] Background setup error: {e}")
+
+        t = threading.Thread(target=_background_setup, args=(proj, id), daemon=True)
+        t.start()
+
     return jsonify({"success": True, "workflow_status": new_status})
 
 @app.route("/api/projects/<id>/publish", methods=["POST"])

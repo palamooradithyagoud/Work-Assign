@@ -28,7 +28,7 @@
         <div class="nav-section-label">Admin</div>
         <button class="nav-item active" data-view="view-admin-overview"><i class="fa-solid fa-chart-pie"></i><span>Overview</span></button>
         <button class="nav-item" data-view="view-admin-projects"><i class="fa-solid fa-folder-tree"></i><span>All Projects</span></button>
-        <button class="nav-item" data-view="view-admin-approvals"><i class="fa-solid fa-shield-check"></i><span>Approvals</span><span class="nav-badge" id="approval-count-badge" style="display:none">0</span></button>
+        <button class="nav-item" data-view="view-admin-approvals"><i class="fa-solid fa-shield-check"></i><span>Plan Approvals</span><span class="nav-badge" id="approval-count-badge" style="display:none">0</span></button>
         <button class="nav-item" data-view="view-admin-employees"><i class="fa-solid fa-users-gear"></i><span>Employees</span></button>
         <button class="nav-item" data-view="view-admin-users"><i class="fa-solid fa-user-shield"></i><span>Users</span></button>
         <button class="nav-item" data-view="view-admin-audit"><i class="fa-solid fa-file-shield"></i><span>Audit Logs</span></button>
@@ -41,14 +41,6 @@
         <button class="nav-item" data-view="view-pm-projects"><i class="fa-solid fa-diagram-project"></i><span>My Projects</span></button>
         <button class="nav-item" data-view="view-pm-employees"><i class="fa-solid fa-users"></i><span>Employees</span></button>
         <button class="nav-item" data-view="view-audit-logs"><i class="fa-solid fa-file-shield"></i><span>Audit Logs</span></button>
-      </div>
-
-      <!-- Team Lead Nav -->
-      <div class="nav-section" id="nav-tl" style="display:none">
-        <div class="nav-section-label">Team Lead</div>
-        <button class="nav-item active" data-view="view-tl-dashboard"><i class="fa-solid fa-house-user"></i><span>My Dashboard</span></button>
-        <button class="nav-item" data-view="view-tl-team"><i class="fa-solid fa-people-group"></i><span>My Team</span></button>
-        <button class="nav-item" data-view="view-tl-tasks"><i class="fa-solid fa-list-check"></i><span>Sprint Tasks</span></button>
       </div>
 
       <!-- Employee Nav -->
@@ -188,13 +180,24 @@
               </div>
             </div>
 
-            <!-- Workload Chart -->
+            <!-- Quick actions for Admin -->
             <div class="card">
               <div class="card-header">
-                <div class="card-title"><i class="fa-solid fa-chart-bar"></i> Team Workload</div>
+                <div class="card-title"><i class="fa-solid fa-bolt"></i> Quick Actions</div>
               </div>
-              <div class="chart-container" style="height:160px">
-                <canvas id="chart-workload"></canvas>
+              <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+                <button class="btn btn-primary" style="justify-content:flex-start;gap:10px" onclick="openModal('modal-create-project')">
+                  <i class="fa-solid fa-plus"></i> Create New Project
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;gap:10px" onclick="switchView('view-admin-approvals')">
+                  <i class="fa-solid fa-shield-check"></i> Review Plan Approvals
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;gap:10px" onclick="switchView('view-admin-projects')">
+                  <i class="fa-solid fa-folder-tree"></i> View All Projects
+                </button>
+                <button class="btn btn-ghost" style="justify-content:flex-start;gap:10px" onclick="switchView('view-admin-users')">
+                  <i class="fa-solid fa-user-shield"></i> Manage Users
+                </button>
               </div>
             </div>
           </div>
@@ -249,8 +252,8 @@
       <section class="view" id="view-admin-approvals">
         <div class="page-header">
           <div class="page-header-left">
-            <h1>Team Lead Approvals</h1>
-            <p>Review and approve team lead selections made by Project Managers</p>
+            <h1>Project Plan Approvals</h1>
+            <p>Review and approve project execution plans and AI team assignments submitted by Project Managers</p>
           </div>
           <div class="page-header-actions">
             <select class="form-control" id="approval-filter" onchange="loadApprovals()" style="width:160px">
@@ -404,138 +407,136 @@
         <!-- Workflow Stepper -->
         <div class="workflow-stepper" id="workflow-stepper">
           <div class="workflow-step" id="step-1"><div class="step-circle">1</div><div class="step-label">PM Review</div></div>
-          <div class="workflow-step" id="step-2"><div class="step-circle">2</div><div class="step-label">Modules</div></div>
-          <div class="workflow-step" id="step-3"><div class="step-circle">3</div><div class="step-label">Teams</div></div>
-          <div class="workflow-step" id="step-4"><div class="step-circle">4</div><div class="step-label">Select Leads</div></div>
-          <div class="workflow-step" id="step-5"><div class="step-circle">5</div><div class="step-label">Admin Approval</div></div>
-          <div class="workflow-step" id="step-6"><div class="step-circle">6</div><div class="step-label">AI Assign</div></div>
-          <div class="workflow-step" id="step-7"><div class="step-circle">7</div><div class="step-label">Review</div></div>
-          <div class="workflow-step" id="step-8"><div class="step-circle">8</div><div class="step-label">Publish</div></div>
+          <div class="workflow-step" id="step-2"><div class="step-circle">2</div><div class="step-label">Analyze with AI</div></div>
+          <div class="workflow-step" id="step-3"><div class="step-circle">3</div><div class="step-label">Edit & Approve</div></div>
+          <div class="workflow-step" id="step-4"><div class="step-circle">4</div><div class="step-label">AI Assignment</div></div>
+          <div class="workflow-step" id="step-5"><div class="step-circle">5</div><div class="step-label">Submit Plan</div></div>
+          <div class="workflow-step" id="step-6"><div class="step-circle">6</div><div class="step-label">Admin Approval</div></div>
+          <div class="workflow-step" id="step-7"><div class="step-circle">7</div><div class="step-label">Dispatch Work</div></div>
+          <div class="workflow-step" id="step-8"><div class="step-circle">8</div><div class="step-label">Active Sprint</div></div>
         </div>
 
         <!-- Step panels -->
 
-        <!-- STEP 1: PM Review -->
+        <!-- STEP 1 & 2: PM Review & AI Analyze -->
         <div id="wf-panel-review" class="card" style="display:none">
           <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-clipboard-check"></i> Step 1 — Review Project Requirements</div>
+            <div class="card-title"><i class="fa-solid fa-clipboard-check"></i> Step 1 & 2 — Review & Analyze with AI</div>
           </div>
           <div class="form-grid">
             <div class="form-section">
               <div class="form-section-title">Project Requirements</div>
               <div class="info-list" id="review-requirements"></div>
             </div>
-            <div class="form-section">
-              <div class="form-section-title">Required Skills & Tech</div>
-              <div id="review-skills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
-              <div class="form-section-title" style="margin-top:8px">PM Assessment</div>
-              <div class="form-group">
-                <label class="form-label">Comment / Notes</label>
-                <textarea class="form-control" id="pm-review-comment" rows="3" placeholder="Add your assessment notes…"></textarea>
+            <div class="form-section" style="display:flex; flex-direction:column; justify-content:center; align-items:center; gap:20px; padding:20px 0;">
+              <i class="fa-solid fa-wand-magic-sparkles" style="font-size:48px; color:var(--accent-purple); animation: pulse 2s infinite;"></i>
+              <div style="text-align:center">
+                <h3 style="font-size:16px; font-weight:700; margin-bottom:8px">AI Project Execution Planner</h3>
+                <p style="font-size:12px; color:var(--text-secondary); max-width:280px; margin:0 auto">
+                  Send details to Groq LLM to automatically generate a detailed 23-section execution plan, including tech stack, modules, timeline and cost estimates.
+                </p>
               </div>
+              <button class="btn btn-primary btn-lg" onclick="triggerAIAnalysis()" id="btn-trigger-analysis">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Analyze with AI
+              </button>
             </div>
           </div>
-          <div style="display:flex;gap:10px;margin-top:16px;justify-content:flex-end">
-            <button class="btn btn-secondary" onclick="pmReview('request_changes')"><i class="fa-solid fa-rotate-left"></i> Request Changes</button>
-            <button class="btn btn-success" onclick="pmReview('approve')"><i class="fa-solid fa-check"></i> Approve Project</button>
-          </div>
         </div>
 
-        <!-- STEP 2: Modules -->
-        <div id="wf-panel-modules" class="card" style="display:none">
+        <!-- STEP 3: Edit & Approve AI Plan -->
+        <div id="wf-panel-ai-plan" class="card" style="display:none">
           <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-sitemap"></i> Step 2 — Break Project into Modules</div>
-            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-module')"><i class="fa-solid fa-plus"></i> Add Module</button>
+            <div class="card-title"><i class="fa-solid fa-list-check"></i> Step 3 — Review & Edit AI Plan</div>
+            <div style="display:flex; gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="triggerAIAnalysis()"><i class="fa-solid fa-rotate"></i> Regenerate</button>
+              <button class="btn btn-primary btn-sm" onclick="approveAIPlan()"><i class="fa-solid fa-check"></i> Approve Plan</button>
+            </div>
           </div>
-          <div id="modules-list" style="display:flex;flex-direction:column;gap:10px">
-            <div class="empty-state" style="padding:32px"><i class="fa-solid fa-sitemap"></i><p>Add modules to break the project into components</p></div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:16px">
-            <button class="btn btn-primary" onclick="proceedToTeams()" id="btn-proceed-teams"><i class="fa-solid fa-arrow-right"></i> Proceed to Teams</button>
-          </div>
-        </div>
-
-        <!-- STEP 3: Teams -->
-        <div id="wf-panel-teams" class="card" style="display:none">
-          <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-people-roof"></i> Step 3 — Create Teams</div>
-            <button class="btn btn-primary btn-sm" onclick="openModal('modal-add-team')"><i class="fa-solid fa-plus"></i> Create Team</button>
-          </div>
-          <div id="teams-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:8px">
-            <div class="empty-state" style="padding:32px;grid-column:1/-1"><i class="fa-solid fa-people-roof"></i><p>Create teams and link them to modules</p></div>
-          </div>
-          <div style="display:flex;justify-content:flex-end;margin-top:16px">
-            <button class="btn btn-primary" onclick="proceedToLeadSelection()" id="btn-proceed-leads"><i class="fa-solid fa-arrow-right"></i> Select Team Leads</button>
-          </div>
-        </div>
-
-        <!-- STEP 4: Lead Selection -->
-        <div id="wf-panel-leads" class="card" style="display:none">
-          <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-crown"></i> Step 4 — Select Team Leads</div>
-            <span class="badge badge-amber">Requires Admin Approval</span>
-          </div>
-          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
-            Select a Team Lead for each team. Your selection will be sent to Admin for approval before proceeding.
+          <p style="font-size:13px; color:var(--text-secondary); margin-bottom:16px">
+            The AI Technical Manager has generated a comprehensive plan. You can edit each of the 23 sections directly in the accordions below.
           </p>
-          <div id="lead-selection-list" style="display:flex;flex-direction:column;gap:20px"></div>
+          <div id="ai-plan-editor-sections" style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px">
+            <!-- Dynamically populated by app.js -->
+          </div>
+          <div style="display:flex; justify-content:flex-end; gap:10px">
+            <button class="btn btn-secondary" onclick="triggerAIAnalysis()"><i class="fa-solid fa-rotate"></i> Regenerate All</button>
+            <button class="btn btn-primary" onclick="approveAIPlan()"><i class="fa-solid fa-check"></i> Approve Plan & Proceed</button>
+          </div>
         </div>
 
-        <!-- STEP 5: Waiting for Admin Approval -->
-        <div id="wf-panel-waiting" class="card" style="display:none;text-align:center;padding:48px">
-          <i class="fa-solid fa-hourglass-half" style="font-size:48px;color:var(--accent-amber);margin-bottom:16px"></i>
-          <h3 style="font-size:18px;font-weight:800;margin-bottom:8px">Waiting for Admin Approval</h3>
-          <p style="color:var(--text-secondary);max-width:400px;margin:0 auto 20px">
-            Your team lead selections have been submitted. Admin will review and approve or reject each selection.
-          </p>
-          <div id="approval-status-list"></div>
-        </div>
-
-        <!-- STEP 6: AI Assignment -->
+        <!-- STEP 4 & 5: AI Employee Assignment -->
         <div id="wf-panel-ai" class="card" style="display:none">
           <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-robot"></i> Step 6 — AI Employee Assignment</div>
+            <div class="card-title"><i class="fa-solid fa-robot"></i> Step 4 — AI Employee Assignment</div>
             <button class="btn btn-primary" onclick="runFullAIAssignment()" id="btn-run-ai">
-              <i class="fa-solid fa-wand-magic-sparkles"></i> Run AI Assignment Engine
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Team Assignment
             </button>
           </div>
           <div id="ai-assignment-results" style="margin-top:16px">
-            <div class="empty-state"><i class="fa-solid fa-robot"></i><h3>Ready to Assign</h3><p>Click "Run AI Assignment Engine" to automatically assign employees to all teams.</p></div>
+            <!-- Dynamically populated assignment cards -->
+          </div>
+          <div style="display:flex; justify-content:flex-end; margin-top:20px; display:none" id="pm-submit-admin-wrap">
+            <button class="btn btn-success btn-lg" onclick="submitPlanToAdmin()"><i class="fa-solid fa-paper-plane"></i> Submit Plan to Admin</button>
           </div>
         </div>
 
-        <!-- STEP 7: Review Assignments -->
-        <div id="wf-panel-review-assignments" class="card" style="display:none">
-          <div class="card-header">
-            <div class="card-title"><i class="fa-solid fa-magnifying-glass"></i> Step 7 — Review AI Assignments</div>
-            <div style="display:flex;gap:8px">
-              <button class="btn btn-secondary btn-sm" onclick="runFullAIAssignment()"><i class="fa-solid fa-rotate"></i> Recalculate</button>
-              <button class="btn btn-primary btn-sm" onclick="saveAndProceedPublish()"><i class="fa-solid fa-check"></i> Accept All</button>
+        <!-- STEP 6: Waiting for Admin Approval -->
+        <div id="wf-panel-waiting" class="card" style="display:none; text-align:center; padding:48px">
+          <i class="fa-solid fa-hourglass-half" style="font-size:48px; color:var(--accent-amber); margin-bottom:16px"></i>
+          <h3 style="font-size:18px; font-weight:800; margin-bottom:8px">Plan Awaiting Admin Approval</h3>
+          <p style="color:var(--text-secondary); max-width:400px; margin:0 auto 20px" id="waiting-status-text">
+            The project plan and team assignments have been submitted. Sarah Connor (Admin) has been notified.
+          </p>
+          <div id="admin-feedback-log" class="card" style="max-width:500px; margin:16px auto 0; text-align:left; background:rgba(255,255,255,0.02)">
+            <div style="font-weight:700; font-size:12px; margin-bottom:6px"><i class="fa-solid fa-comments"></i> Admin Feedback:</div>
+            <div id="admin-feedback-comment" style="font-size:13px; color:var(--text-muted)">No comment history.</div>
+          </div>
+        </div>
+
+        <!-- STEP 7 & 8: Active Execution Sprint -->
+        <div id="wf-panel-publish" style="display:none">
+          <!-- KPI Metrics Row -->
+          <div class="kpi-grid mb-16">
+            <div class="kpi-card" style="padding:14px">
+              <div class="kpi-value" id="sprint-progress-pct">0%</div>
+              <div class="kpi-label">Sprint Completion</div>
+            </div>
+            <div class="kpi-card red" style="padding:14px">
+              <div class="kpi-value" id="sprint-late-tasks">0</div>
+              <div class="kpi-label">Late Tasks</div>
+            </div>
+            <div class="kpi-card amber" style="padding:14px">
+              <div class="kpi-value" id="sprint-help-requests">0</div>
+              <div class="kpi-label">Help Requests</div>
             </div>
           </div>
-          <div id="review-assignments-list" style="display:flex;flex-direction:column;gap:16px;margin-top:8px"></div>
-        </div>
 
-        <!-- STEP 8: Publish -->
-        <div id="wf-panel-publish" class="card" style="display:none;text-align:center;padding:48px">
-          <div id="publish-ready-state">
-            <i class="fa-solid fa-rocket-launch" style="font-size:48px;background:var(--grad-primary);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:16px"></i>
-            <h3 style="font-size:20px;font-weight:800;margin-bottom:8px">Ready to Publish</h3>
-            <p style="color:var(--text-secondary);max-width:400px;margin:0 auto 24px">
-              All teams have been formed and employees assigned. Publishing will notify all team members and make the project officially active.
-            </p>
-            <button class="btn btn-primary btn-lg" onclick="publishProject()">
-              <i class="fa-solid fa-paper-plane"></i> Publish Assignments
-            </button>
+          <!-- Project Kanban Board -->
+          <div class="card mb-16">
+            <div class="card-header">
+              <div class="card-title"><i class="fa-solid fa-list-check"></i> Project Kanban Board</div>
+              <button class="btn btn-primary btn-sm" onclick="openModal('modal-create-task')"><i class="fa-solid fa-plus"></i> New Task</button>
+            </div>
+            <div class="kanban-board" id="pm-kanban-board" style="margin-top:12px">
+              <!-- Dynamically populated cols -->
+            </div>
           </div>
-          <div id="publish-done-state" style="display:none">
-            <i class="fa-solid fa-circle-check" style="font-size:64px;color:var(--accent-green);margin-bottom:16px"></i>
-            <h3 style="font-size:22px;font-weight:800;margin-bottom:8px;color:var(--accent-green)">Project Live!</h3>
-            <p style="color:var(--text-secondary)">All employees have been notified. Project is now active.</p>
+
+          <!-- Team workload & Timeline -->
+          <div class="two-col">
+            <div class="card">
+              <div class="card-header"><div class="card-title"><i class="fa-solid fa-users"></i> Team Workload</div></div>
+              <div id="sprint-workload-list" style="display:flex; flex-direction:column; gap:10px"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> Risk Alerts & Mitigations</div></div>
+              <div id="sprint-risk-alerts" style="display:flex; flex-direction:column; gap:10px"></div>
+            </div>
           </div>
         </div>
 
       </section>
+
 
       <!-- PM Employees view -->
       <section class="view" id="view-pm-employees">
@@ -680,7 +681,7 @@
 <div class="modal-overlay" style="display:none" id="modal-create-project" onclick="handleOverlayClick(event,'modal-create-project')">
   <div class="modal modal-lg">
     <div class="modal-header">
-      <div class="modal-title"><i class="fa-solid fa-folder-plus"></i> Create New Project</div>
+      <div class="modal-title"><i class="fa-solid fa-folder-plus"></i> Create New Project & Assign PM</div>
       <button class="modal-close" onclick="closeModal('modal-create-project')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="modal-body">
@@ -694,7 +695,7 @@
           <textarea class="form-control" id="cp-desc" rows="3" placeholder="Describe the project objectives…"></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Client / Organisation *</label>
+          <label class="form-label">Client Name *</label>
           <input class="form-control" id="cp-client" placeholder="e.g. Apollo Hospitals"/>
         </div>
         <div class="form-group">
@@ -704,31 +705,19 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Budget</label>
+          <label class="form-label">Budget (optional)</label>
           <input class="form-control" id="cp-budget" placeholder="e.g. $120,000"/>
         </div>
         <div class="form-group">
-          <label class="form-label">Deadline (days from today)</label>
+          <label class="form-label">Deadline (days from today - optional)</label>
           <input class="form-control" type="number" id="cp-deadline" value="60" min="1"/>
         </div>
-        <div class="form-group">
-          <label class="form-label">Estimated Duration</label>
-          <input class="form-control" id="cp-duration" placeholder="e.g. 3 months"/>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Team Size</label>
-          <input class="form-control" type="number" id="cp-teamsize" value="8" min="1"/>
+        <div class="form-group form-full">
+          <label class="form-label">Documents (optional)</label>
+          <input class="form-control" type="file" id="cp-docs" multiple style="background:transparent; border:none; padding:4px 0;"/>
         </div>
         <div class="form-group form-full">
-          <label class="form-label">Required Skills (semicolon separated)</label>
-          <input class="form-control" id="cp-skills" placeholder="Python;React;PostgreSQL;Docker"/>
-        </div>
-        <div class="form-group form-full">
-          <label class="form-label">Preferred Technologies</label>
-          <input class="form-control" id="cp-tech" placeholder="LangChain;FastAPI;Kubernetes"/>
-        </div>
-        <div class="form-group form-full">
-          <label class="form-label">Assign Project Manager</label>
+          <label class="form-label">Select Project Manager *</label>
           <select class="form-control" id="cp-pm">
             <option value="">— Select Project Manager —</option>
           </select>
@@ -737,7 +726,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-create-project')">Cancel</button>
-      <button class="btn btn-primary" onclick="createProject()"><i class="fa-solid fa-plus"></i> Create Project</button>
+      <button class="btn btn-primary" onclick="createProject()"><i class="fa-solid fa-plus"></i> Assign Project</button>
     </div>
   </div>
 </div>
@@ -847,20 +836,20 @@
 
 <!-- Admin Approval Detail Modal -->
 <div class="modal-overlay" style="display:none" id="modal-approval-detail" onclick="handleOverlayClick(event,'modal-approval-detail')">
-  <div class="modal modal-lg">
+  <div class="modal modal-xl">
     <div class="modal-header">
-      <div class="modal-title"><i class="fa-solid fa-shield-check"></i> Team Lead Approval Request</div>
+      <div class="modal-title"><i class="fa-solid fa-shield-check"></i> Project Execution Plan Review</div>
       <button class="modal-close" onclick="closeModal('modal-approval-detail')"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <div class="modal-body" id="approval-detail-body">
+    <div class="modal-body" id="approval-detail-body" style="max-height: 70vh; overflow-y: auto;">
       <div class="empty-state"><div class="spinner"></div></div>
     </div>
     <div class="modal-footer" id="approval-detail-footer" style="display:none">
       <div class="form-group" style="flex:1">
-        <input class="form-control" id="approval-comment-input" placeholder="Add a comment (required if rejecting)…"/>
+        <input class="form-control" id="approval-comment-input" placeholder="Add feedback / comments (required if rejecting)…"/>
       </div>
-      <button class="btn btn-danger" onclick="decideApproval('reject')"><i class="fa-solid fa-xmark"></i> Reject</button>
-      <button class="btn btn-success" onclick="decideApproval('approve')"><i class="fa-solid fa-check"></i> Approve</button>
+      <button class="btn btn-danger" onclick="adminPlanDecision('reject')"><i class="fa-solid fa-xmark"></i> Reject Plan</button>
+      <button class="btn btn-success" onclick="adminPlanDecision('approve')"><i class="fa-solid fa-check"></i> Approve & Active Project</button>
     </div>
   </div>
 </div>

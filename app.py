@@ -35,7 +35,7 @@ db.seed_database()
 @app.route("/api/debug-db")
 def api_debug_db():
     import traceback
-    url = os.getenv("DATABASE_URL", "postgresql://postgres:ADITHYAGOUD%40789@db.bpzpefonhzolyzqfhagn.supabase.co:5432/postgres")
+    url = os.getenv("DATABASE_URL", "postgresql://postgres:ADITHYAGOUD%40789@db.jxnacpjbrnbihgmcydwr.supabase.co:5432/postgres")
     masked_url = url
     try:
         if "@" in url:
@@ -289,8 +289,8 @@ def api_projects():
             return jsonify([p for p in projects if p["project_id"] in assigned_project_ids])
         return jsonify(projects)
         
-    # POST - Create project
-    if session.get("role") not in ("admin", "project_manager"):
+    # POST - Create project (Admin only creates the project, enters minimal details, selects PM)
+    if session.get("role") != "admin":
         return jsonify({"error": "Forbidden"}), 403
         
     body = request.get_json(force=True)
@@ -298,22 +298,29 @@ def api_projects():
     if not project_name:
         return jsonify({"error": "Project name is required"}), 400
         
+    pm_id = body.get("assigned_pm", "").strip()
+    
     new_proj = {
         "project_id": f"PRJ{random.randint(100, 999)}",
         "project_name": project_name,
+        "client": body.get("client", "").strip(),
         "description": body.get("description", "").strip(),
-        "deadline_days": int(body.get("deadline_days", 30)),
         "priority": body.get("priority", "Medium"),
-        "estimated_duration": body.get("estimated_duration", ""),
-        "budget": body.get("budget", ""),
-        "required_skills": body.get("required_skills", ""),
-        "preferred_tech": body.get("preferred_tech", ""),
-        "preferred_roles": body.get("preferred_roles", []),
-        "team_size": int(body.get("team_size", 2)),
-        "status": "planning"
+        "deadline_days": int(body.get("deadline_days", 30)) if body.get("deadline_days") else 30,
+        "budget": body.get("budget", "").strip(),
+        "assigned_pm": pm_id or None,
+        "workflow_status": "pending_review" if pm_id else "draft",
+        "status": "planning",
+        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
     }
     db.insert("projects", new_proj)
-    db.log_action("PROJECT_CREATED", f"Project '{project_name}' was created.", session.get("email"))
+    db.log_action("PROJECT_CREATED", f"Project '{project_name}' was created by Admin.", session.get("email"))
+    
+    if pm_id:
+        db.add_notification(pm_id, "Project Assigned to You",
+            f"You have been assigned as Project Manager for '{project_name}'. Please review and analyze.",
+            "info")
+            
     return jsonify(new_proj)
 
 @app.route("/api/projects/<id>", methods=["PUT", "DELETE"])
@@ -332,7 +339,7 @@ def api_project_detail(id):
     # PUT
     body = request.get_json(force=True)
     updates = {}
-    for field in ["project_name", "description", "deadline_days", "priority", "estimated_duration", "budget", "required_skills", "preferred_tech", "preferred_roles", "team_size", "status"]:
+    for field in ["project_name", "description", "deadline_days", "priority", "estimated_duration", "budget", "required_skills", "preferred_tech", "preferred_roles", "team_size", "status", "workflow_status", "pm_comment", "client", "assigned_pm"]:
         if field in body:
             updates[field] = body[field]
             
@@ -358,7 +365,7 @@ def api_archive_project(id):
 # ──────────────────────────────────────────────
 # AI PLANNING ENGINE
 # ──────────────────────────────────────────────
-@app.route("/api/projects/<id>/ai-plan", methods=["POST"])
+@app.route("/api/projects/<id>/ai-plan", methods=["POST", "PUT"])
 def api_ai_plan(id):
     if session.get("role") not in ("admin", "project_manager"):
         return jsonify({"error": "Forbidden"}), 403
@@ -367,6 +374,17 @@ def api_ai_plan(id):
     if not proj:
         return jsonify({"error": "Project not found"}), 404
         
+    if request.method == "PUT":
+        # Step 3: PM edits AI Plan
+        body = request.get_json(force=True)
+        plan = body.get("ai_plan")
+        if not plan:
+            return jsonify({"error": "ai_plan is required"}), 400
+        updated = db.update("projects", id, {"ai_plan": plan, "workflow_status": "ai_planning"})
+        db.log_action("AI_PLAN_UPDATED", f"AI plan updated by PM for project '{proj['project_name']}'.", session.get("email"))
+        return jsonify(updated)
+        
+    # POST - Analyze with AI
     employees = db.get_all("employees")
     csv_data = [
         {
@@ -377,66 +395,25 @@ def api_ai_plan(id):
     ]
     
     GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-    if not GROQ_API_KEY:
-        mock_plan = {
-            "project_overview": f"A targeted AI application optimization cycle for {proj['project_name']}. Deploys serverless infrastructure with responsive React features.",
-            "architecture": "Structured RAG pipeline connecting frontend client elements to a secure LLM execution framework.",
-            "team_composition": [
-                {"role": "AI Engineer", "count": 1, "skills_required": ["Python", "LLMs"], "responsibility": "Model fine-tuning and index generation"},
-                {"role": "Frontend Developer", "count": 1, "skills_required": ["React", "TypeScript"], "responsibility": "Interactive workspace screens design"}
-            ],
-            "timeline_summary": f"Estimate: {proj.get('deadline_days', 30)} days. Milestones: Setup (Day 5), Core refactoring (Day 15), Delivery (Day 30).",
-            "risks": [
-                {"risk": "High context window costs", "mitigation": "Optimize search embeddings with custom threshold RAG filters."}
-            ],
-            "recommended_tech_stack": [
-                {"technology": "OpenAI API", "category": "LLM", "purpose": "Natural language generation"},
-                {"technology": "Pinecone", "category": "Database", "purpose": "Semantic RAG database storage"}
-            ],
-            "resource_allocation": "1 AI Engineer, 1 Frontend Developer",
-            "estimated_cost": "$25,000.00 USD",
-            "expected_completion_time": f"{proj.get('deadline_days', 30)} Days"
-        }
-        db.update("projects", id, {"ai_plan": mock_plan})
-        db.log_action("AI_PLAN_GENERATED", f"AI generated project plan for '{proj['project_name']}' (MOCK).", session.get("email"))
-        return jsonify(mock_plan)
-        
     try:
-        # Request Llama plan
+        # Run Groq Llama project plan generation (returns 23 required sections)
         result = run_analysis(
             groq_key=GROQ_API_KEY,
             project_name=proj["project_name"],
             csv_sources=csv_data,
             project_description=proj.get("description", ""),
             preferred_roles=proj.get("preferred_roles", []),
-            team_size_hint=str(proj.get("team_size", 2)),
+            team_size_hint=str(proj.get("team_size", 5)),
             tech_preferences=proj.get("preferred_tech", ""),
             duration_hint=f"{proj.get('deadline_days')} days"
         )
-        db.update("projects", id, {"ai_plan": result})
-        db.log_action("AI_PLAN_GENERATED", f"AI generated project plan for '{proj['project_name']}' (Llama-3.3).", session.get("email"))
-        
-        # Populate project tasks if none exist
-        proj_tasks = [t for t in db.get_all("tasks") if t["project_id"] == id]
-        if not proj_tasks and "execution_plan" in result:
-            for phase_idx, phase in enumerate(result["execution_plan"]):
-                for task_idx, tname in enumerate(phase.get("tasks", [])):
-                    db.insert("tasks", {
-                        "id": f"task-ai-{id}-{phase_idx}-{task_idx}",
-                        "project_id": id,
-                        "task_name": tname,
-                        "description": f"Generated task for phase {phase['phase']}.",
-                        "assigned_to": None,
-                        "priority": "medium",
-                        "deadline": (datetime.date.today() + datetime.timedelta(days=15)).isoformat(),
-                        "estimated_hours": 8,
-                        "status": "To Do",
-                        "comments": []
-                    })
+        db.update("projects", id, {"ai_plan": result, "workflow_status": "ai_planning"})
+        db.log_action("AI_PLAN_GENERATED", f"AI generated project plan for '{proj['project_name']}'.", session.get("email"))
         return jsonify(result)
     except Exception as e:
         print(f"[AssignIQ] AI Plan failed: {e}")
         return jsonify({"error": f"AI Plan failed: {str(e)}"}), 500
+
 
 # ──────────────────────────────────────────────
 # EMPLOYEES DIRECTORY API
@@ -912,8 +889,8 @@ def api_task_detail(id):
     body = request.get_json(force=True)
     updates = {}
     
-    allowed_fields = ["status", "comments", "deliverable", "progress_percent", "hours_worked"] if not is_pm_admin else \
-                     ["task_name", "description", "assigned_to", "priority", "deadline", "estimated_hours", "status", "comments", "deliverable", "progress_percent", "hours_worked"]
+    allowed_fields = ["status", "comments", "deliverable", "progress_percent", "hours_worked", "help_requested", "help_comment"] if not is_pm_admin else \
+                     ["task_name", "description", "assigned_to", "priority", "deadline", "estimated_hours", "status", "comments", "deliverable", "progress_percent", "hours_worked", "help_requested", "help_comment"]
                      
     for field in allowed_fields:
         if field in body:
@@ -927,6 +904,16 @@ def api_task_detail(id):
                 for u in db.get_all("users"):
                     if u["role"] in ("admin", "project_manager"):
                         db.add_notification(u["id"], "Task Completed", f"{session['full_name']} marked '{task['task_name']}' as Completed.", "success")
+        if body.get("help_requested") is True:
+            # Notify PM
+            proj = db.get_by_id("projects", task["project_id"])
+            pm_id = proj.get("assigned_pm") if proj else None
+            if pm_id:
+                db.add_notification(pm_id, "Employee Requested Help", 
+                    f"'{session['full_name']}' requested help on task '{task['task_name']}': {body.get('help_comment', '')}", 
+                    "warning")
+            db.log_action("TASK_HELP_REQUESTED", f"Employee requested help on task '{task['task_name']}'.", session.get("email"))
+            
         return jsonify(updated)
     return jsonify({"error": "Task update failed"}), 400
 
@@ -1540,128 +1527,247 @@ def api_ai_assign_all(id):
     proj = db.get_by_id("projects", id)
     if not proj:
         return jsonify({"error": "Project not found"}), 404
-    teams     = [t for t in db.get_all("teams") if t["project_id"] == id]
+        
+    ai_plan = proj.get("ai_plan") or {}
+    modules = ai_plan.get("functional_modules", [])
+    if not modules:
+        # Fallback default modules
+        modules = [
+            {"module_name": "Authentication Module", "required_skills": "JWT;FastAPI;OAuth2"},
+            {"module_name": "Billing Module", "required_skills": "Stripe;PostgreSQL;REST API"},
+            {"module_name": "Reports Module", "required_skills": "React;Chart.js;Pandas"}
+        ]
+        
     employees = db.get_all("employees")
-    existing_assigned = {m["employee_id"] for m in db.get_all("team_members")}
+    existing_assigned = set()
     all_assignments = []
-    for team in teams:
-        if not team.get("lead_approved"):
-            continue
-        team_skills = team.get("required_skills", "") or proj.get("required_skills", "")
-        team_size   = int(team.get("team_size", 3))
-        # Exclude lead and already-assigned members
-        excl = set(existing_assigned)
-        if team.get("team_lead_id"):
-            excl.add(team["team_lead_id"])
-        scored = _score_employees_for_role(employees, team_skills, exclude_ids=list(excl))
-        slots = min(team_size - 1, len(scored))  # -1 for the lead
-        team_assignments = []
+    
+    # Automatically create teams for each module in the AI plan
+    for idx, mod in enumerate(modules):
+        mod_name = mod.get("module_name", f"Module {idx+1}")
+        req_skills = mod.get("required_skills", "")
+        
+        # Check if team already exists for this module, else create it
+        teams = db.get_all("teams")
+        team = None
+        for t in teams:
+            if t["project_id"] == id and t["module_id"] == mod_name:
+                team = t
+                break
+        if not team:
+            team_id = f"TEAM{random.randint(1000, 9999)}"
+            team = {
+                "team_id": team_id,
+                "project_id": id,
+                "module_id": mod_name,
+                "team_name": f"Team {mod_name.replace(' Module', '').replace(' module', '')}",
+                "required_skills": req_skills,
+                "team_size": 5,
+                "team_lead_id": None,
+                "lead_approved": True,
+                "status": "active",
+                "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+            }
+            db.insert("teams", team)
+            
+        # Score eligible candidates using 5-factor scoring engine
+        scored = _score_employees_for_role(employees, req_skills, exclude_ids=list(existing_assigned))
+        if not scored:
+            # Re-score without exclusions if we run out of employees
+            scored = _score_employees_for_role(employees, req_skills)
+            
+        # Assign members (up to 5 per team/module)
+        slots = min(5, len(scored))
         for i in range(slots):
             s = scored[i]
             e = s["employee"]
             alt = scored[i + 1] if i + 1 < len(scored) else None
-            assignment_entry = {
+            
+            # Format alternatives
+            alts_list = []
+            if alt:
+                alts_list.append({
+                    "name": alt["employee"]["name"],
+                    "confidence": f"{alt['confidence']}%",
+                    "reason_not_selected": f"Lower skill alignment ({alt['skill_match']}% match) or higher workload."
+                })
+                
+            # Create assignment details
+            assignment = {
                 "id": str(uuid.uuid4()),
-                "team_id": team["team_id"],
                 "employee_id": e["employee_id"],
                 "employee_name": e["name"],
+                "assigned_role": e.get("role", "Software Engineer"),
+                "assigned_module": mod_name,
+                "team_id": team["team_id"],
                 "team_name": team["team_name"],
-                "assigned_role": e.get("role", "Team Member"),
-                "assigned_at": datetime.datetime.utcnow().isoformat() + "Z",
-                "ai_confidence": s["confidence"],
-                "ai_reason": (
-                    f"Optimal candidate: {s['skill_match']}% skill match, "
-                    f"{e.get('experience', 1)} yrs experience, "
-                    f"{100 - e.get('current_workload', 0)}% availability."
+                "skill_match": f"{s['skill_match']}%",
+                "experience_score": f"{e.get('experience', 1)} years",
+                "availability": f"{100 - e.get('current_workload', 0)}%",
+                "current_workload": f"{e.get('current_workload', 0)}%",
+                "confidence_score": f"{s['confidence']}%",
+                "reason_for_selection": (
+                    f"Selected due to {s['skill_match']}% skill match with {mod_name} requirements, "
+                    f"{e.get('experience', 1)} years experience, and balanced workload."
                 ),
-                "is_lead": False,
-                "skill_match": s["skill_match"],
-                "experience_pct": s["experience_pct"],
-                "availability_pct": s["availability_pct"],
-                "performance": e.get("performance_score", 80),
-                "matching_skills": s["matching_skills"],
+                "alternative_candidates": alts_list,
                 "decision_trace": [
-                    f"Required skills parsed: {team_skills}",
-                    f"Scored {len(employees)} candidates against {len(scored)} eligible.",
-                    f"Confidence: skill({s['skill_match']}%) × exp({s['experience_pct']}%) × avail({s['availability_pct']}%) × perf({e.get('performance_score',80)}%)",
-                    f"Selected {e['name']} with {s['confidence']}% overall confidence."
-                ],
-                "alternative": {
-                    "employee_id": alt["employee"]["employee_id"] if alt else None,
-                    "employee_name": alt["employee"]["name"] if alt else "None",
-                    "confidence": alt["confidence"] if alt else 0,
-                    "reason_not_selected": f"Lower composite score ({alt['confidence']}%)." if alt else ""
-                }
+                    f"1. Evaluated candidate against skills: {req_skills}",
+                    f"2. Checked current workload ({e.get('current_workload', 0)}%) and availability",
+                    f"3. Derived experience score ({e.get('experience', 1)}y) and performance score ({e.get('performance_score', 85)}%)",
+                    f"4. Ranked #1 among all available employees based on composite score of {s['confidence']}%"
+                ]
             }
-            team_assignments.append(assignment_entry)
+            all_assignments.append(assignment)
             existing_assigned.add(e["employee_id"])
-        all_assignments.extend(team_assignments)
-    db.update("projects", id, {"workflow_status": "ai_assigned"})
-    db.log_action("AI_ASSIGNED_ALL", f"AI assigned {len(all_assignments)} employees across {len(teams)} teams.", session.get("email"))
+            
+    # Save assignments inside project's ai_plan
+    ai_plan["assignments"] = all_assignments
+    db.update("projects", id, {"ai_plan": ai_plan, "workflow_status": "ai_assigned"})
+    db.log_action("AI_ASSIGNMENTS_GENERATED", f"AI generated team assignments for project '{proj['project_name']}'.", session.get("email"))
     return jsonify({"assignments": all_assignments, "total": len(all_assignments)})
 
 @app.route("/api/projects/<id>/save-assignments", methods=["POST"])
 def api_save_assignments(id):
-    """PM reviews and saves AI assignments to DB (team_members table)."""
+    """PM reviews and saves AI assignments to DB (ai_plan nested list)."""
     if session.get("role") not in ("admin", "project_manager"):
         return jsonify({"error": "Forbidden"}), 403
     body = request.get_json(force=True)
     assignments = body.get("assignments", [])
-    for a in assignments:
-        # Check if already exists (idempotent)
-        existing = [m for m in db.get_all("team_members")
-                    if m["team_id"] == a["team_id"] and m["employee_id"] == a["employee_id"]]
-        if not existing:
-            db.insert("team_members", {
-                "id": a.get("id", str(uuid.uuid4())),
-                "team_id": a["team_id"],
-                "employee_id": a["employee_id"],
-                "assigned_role": a.get("assigned_role", "Team Member"),
-                "assigned_at": a.get("assigned_at", datetime.datetime.utcnow().isoformat() + "Z"),
-                "ai_confidence": a.get("ai_confidence", 0),
-                "ai_reason": a.get("ai_reason", ""),
-                "is_lead": False
-            })
-    db.update("projects", id, {"workflow_status": "pm_reviewing"})
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+        
+    ai_plan = proj.get("ai_plan") or {}
+    ai_plan["assignments"] = assignments
+    db.update("projects", id, {"ai_plan": ai_plan, "workflow_status": "pm_reviewing"})
+    db.log_action("PROJECT_ASSIGNMENTS_SAVED", f"PM reviewed and saved assignments for project '{proj['project_name']}'.", session.get("email"))
     return jsonify({"success": True, "saved": len(assignments)})
 
-@app.route("/api/projects/<id>/publish", methods=["POST"])
-def api_publish_project(id):
+@app.route("/api/projects/<id>/submit-to-admin", methods=["POST"])
+def api_submit_to_admin(id):
     if session.get("role") not in ("admin", "project_manager"):
         return jsonify({"error": "Forbidden"}), 403
     proj = db.get_by_id("projects", id)
     if not proj:
         return jsonify({"error": "Project not found"}), 404
-    db.update("projects", id, {"workflow_status": "active", "status": "active"})
-    teams   = [t for t in db.get_all("teams") if t["project_id"] == id]
-    members = db.get_all("team_members")
-    employees = {e["employee_id"]: e for e in db.get_all("employees")}
-    notified = 0
-    for team in teams:
-        team_members = [m for m in members if m["team_id"] == team["team_id"]]
-        lead_id = team.get("team_lead_id")
-        lead_emp = employees.get(lead_id, {})
-        lead_name = lead_emp.get("name", "Your Team Lead")
-        for m in team_members:
-            emp = employees.get(m["employee_id"])
-            if emp:
-                db.add_notification(m["employee_id"],
-                    f"You are assigned to {proj['project_name']}!",
-                    f"Role: {m.get('assigned_role','Team Member')} | Team: {team['team_name']} | Lead: {lead_name} | Project: {proj['project_name']}",
-                    "success")
-                notified += 1
-        # Notify lead too
-        if lead_id and lead_id in employees:
-            db.add_notification(lead_id, "Your team is ready!",
-                f"All members assigned to '{team['team_name']}' on '{proj['project_name']}'. Lead the team!",
-                "success")
-    # Notify admins
+        
+    db.update("projects", id, {"workflow_status": "awaiting_admin_approval"})
+    
+    # Notify Admin
     for u in db.get_all("users"):
         if u["role"] == "admin":
-            db.add_notification(u["id"], "Project Published",
-                f"'{proj['project_name']}' is now active with teams and assignments published.", "success")
-    db.log_action("PROJECT_PUBLISHED", f"Project '{proj['project_name']}' published. {notified} employees notified.", session.get("email"))
-    return jsonify({"success": True, "notified": notified})
+            db.add_notification(u["id"], "Project Execution Plan Awaiting Approval",
+                f"PM submitted execution plan for '{proj['project_name']}'. Please review and approve.",
+                "warning")
+                
+    db.log_action("PROJECT_SUBMITTED_TO_ADMIN", f"Project plan for '{proj['project_name']}' submitted to Admin.", session.get("email"))
+    return jsonify({"success": True})
+
+@app.route("/api/projects/<id>/admin-decision", methods=["POST"])
+def api_admin_decision(id):
+    if session.get("role") != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+    body = request.get_json(force=True)
+    decision = body.get("decision")  # "approve" | "reject"
+    comment = body.get("comment", "").strip()
+    if decision not in ("approve", "reject"):
+        return jsonify({"error": "decision must be approve or reject"}), 400
+        
+    proj = db.get_by_id("projects", id)
+    if not proj:
+        return jsonify({"error": "Project not found"}), 404
+        
+    new_status = "approved" if decision == "approve" else "rejected"
+    db.update("projects", id, {
+        "workflow_status": new_status,
+        "status": "active" if decision == "approve" else "planning",
+        "pm_comment": comment
+    })
+    
+    # Notify PM
+    pm_id = proj.get("assigned_pm")
+    if pm_id:
+        title = "Project Plan Approved" if decision == "approve" else "Project Plan Rejected"
+        msg = f"Admin approved execution plan for '{proj['project_name']}'." if decision == "approve" else \
+              f"Admin rejected execution plan for '{proj['project_name']}': {comment}"
+        notif_type = "success" if decision == "approve" else "error"
+        db.add_notification(pm_id, title, msg, notif_type)
+        
+    if decision == "approve":
+        # Create team members entries and send notification to each employee
+        ai_plan = proj.get("ai_plan") or {}
+        assignments = ai_plan.get("assignments", [])
+        
+        # Parse phases to create actual sprint tasks
+        timeline = ai_plan.get("estimated_timeline") or {}
+        phases = timeline.get("project_phases", [])
+        
+        # Keep track of generated teams to assign team lead
+        team_leads_assigned = set()
+        
+        for a in assignments:
+            team_id = a["team_id"]
+            is_first_in_team = team_id not in team_leads_assigned
+            if is_first_in_team:
+                team_leads_assigned.add(team_id)
+                db.update("teams", team_id, {"team_lead_id": a["employee_id"]})
+                
+            # 1. Insert into team_members table
+            db.insert("team_members", {
+                "id": a.get("id", str(uuid.uuid4())),
+                "team_id": team_id,
+                "employee_id": a["employee_id"],
+                "assigned_role": a["assigned_role"],
+                "assigned_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "ai_confidence": float(a["confidence_score"].replace("%","")) if a.get("confidence_score") else 85.0,
+                "ai_reason": a["reason_for_selection"],
+                "is_lead": is_first_in_team
+            })
+            
+            # 2. Notify employee with complete project/sprint info
+            emp_msg = (
+                f"Project Name: {proj['project_name']}\n"
+                f"Assigned Module: {a['assigned_module']}\n"
+                f"Assigned Role: {a['assigned_role']}\n"
+                f"Team Name: {a['team_name']}\n"
+                f"Reporting Project Manager: Marcus Aurelius (PM)\n"
+                f"Deadline: {proj.get('deadline_days', 30)} Days\n"
+                f"Priority: {proj.get('priority', 'Medium')}\n"
+                f"Task Summary: Build, test and deploy {a['assigned_module']}.\n"
+                f"Required Skills: {a.get('skill_match', 'Various')}\n"
+                f"Expected Deliverables: Zero bug build of functional modules."
+            )
+            db.add_notification(a["employee_id"], "Work Assignment Dispatched", emp_msg, "info")
+            
+            # 3. Auto-populate sprint tasks for this employee
+            for idx, phase in enumerate(phases[:3]):  # create 3 starter tasks
+                db.insert("tasks", {
+                    "id": f"task-{id}-{a['employee_id']}-{idx}",
+                    "project_id": id,
+                    "task_name": f"[{a['assigned_module']}] {phase['phase']} task",
+                    "description": f"Perform {phase['phase']} activities for the {a['assigned_module']}.",
+                    "assigned_to": a["employee_id"],
+                    "priority": proj.get("priority", "Medium").lower(),
+                    "deadline": (datetime.date.today() + datetime.timedelta(days=15)).isoformat(),
+                    "estimated_hours": 12,
+                    "status": "To Do",
+                    "comments": [],
+                    "progress_percent": 0,
+                    "created_at": datetime.datetime.utcnow().isoformat() + "Z"
+                })
+                
+    db.log_action("PROJECT_ADMIN_DECISION", f"Admin {decision}d plan for '{proj['project_name']}'.", session.get("email"))
+    return jsonify({"success": True, "workflow_status": new_status})
+
+@app.route("/api/projects/<id>/publish", methods=["POST"])
+def api_publish_project(id):
+    """Fallback compatibility endpoint."""
+    if session.get("role") not in ("admin", "project_manager"):
+        return jsonify({"error": "Forbidden"}), 403
+    db.update("projects", id, {"workflow_status": "approved", "status": "active"})
+    return jsonify({"success": True, "notified": 0})
+
 
 # ─── Team Lead Dashboard ─────────────────────────────────────────────────────
 @app.route("/api/teamlead/dashboard", methods=["GET"])

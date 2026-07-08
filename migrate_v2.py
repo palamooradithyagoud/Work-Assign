@@ -3,9 +3,17 @@ AssignIQ v2 Database Migration
 Adds new tables and columns for the enterprise workflow platform.
 Safe to run multiple times (idempotent - uses IF NOT EXISTS / IF NOT EXISTS).
 """
+import os
 import psycopg2
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+load_dotenv()
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:ADITHYAGOUD%40789@db.jxnacpjbrnbihgmcydwr.supabase.co:5432/postgres"
+)
+
 
 ALTER_STATEMENTS = [
     # Projects table additions
@@ -23,6 +31,9 @@ ALTER_STATEMENTS = [
     # Users table additions
     "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS department TEXT",
     "ALTER TABLE public.users ADD COLUMN IF NOT EXISTS phone TEXT",
+    # Tasks table additions
+    "ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS help_requested BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS help_comment TEXT",
 ]
 
 CREATE_STATEMENTS = [

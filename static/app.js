@@ -163,66 +163,63 @@ async function loadViewData(viewId) {
 // ═══════════════════════════════════════════════════
 async function loadAdminOverview() {
   try {
-    const [metricsResp, projectsResp, approvalsResp] = await Promise.all([
+    const [metricsResp, projectsResp, pendingResp] = await Promise.all([
       fetch('/api/metrics/v2'),
       fetch('/api/projects'),
-      fetch('/api/lead-approvals?status=pending')
+      fetch('/api/admin/pending-projects')
     ]);
-    const metrics   = await metricsResp.json();
-    allProjects     = await projectsResp.json();
-    const approvals = await approvalsResp.json();
+    const metrics  = await metricsResp.json();
+    allProjects    = await projectsResp.json();
+    const pending  = await pendingResp.json();
 
     const k = metrics.kpis;
-    document.getElementById('kpi-total-projects').textContent  = k.total_projects;
-    document.getElementById('kpi-active-projects').textContent = k.active_projects;
-    document.getElementById('kpi-pending-approvals').textContent = k.pending_approvals;
-    document.getElementById('kpi-total-employees').textContent = k.total_employees;
-    document.getElementById('kpi-total-teams').textContent     = k.total_teams;
-    document.getElementById('kpi-avg-perf').textContent        = k.avg_performance + '%';
+    document.getElementById('kpi-total-projects').textContent    = k.total_projects;
+    document.getElementById('kpi-active-projects').textContent   = k.active_projects;
+    document.getElementById('kpi-pending-approvals').textContent = pending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    document.getElementById('kpi-total-employees').textContent   = k.total_employees;
+    document.getElementById('kpi-total-teams').textContent       = k.total_teams;
+    document.getElementById('kpi-avg-perf').textContent          = k.avg_performance + '%';
 
-    // Update approval count badge
+    // Update approval count badge in sidebar
+    const pendingCount = pending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
     const badge = document.getElementById('approval-count-badge');
-    if (k.pending_approvals > 0) { badge.textContent = k.pending_approvals; badge.style.display = 'flex'; }
-    else badge.style.display = 'none';
+    if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
 
-    // Recent projects list
+    // Recent projects pipeline
     const recentProjs = allProjects.slice(-6).reverse();
-    const projListEl = document.getElementById('admin-projects-list');
+    const projListEl  = document.getElementById('admin-projects-list');
     if (recentProjs.length === 0) {
-      projListEl.innerHTML = `<div class="empty-state" style="padding:24px"><i class="fa-solid fa-folder-open"></i><p>No projects yet</p></div>`;
+      projListEl.innerHTML = `<div class="empty-state" style="padding:24px"><i class="fa-solid fa-folder-open"></i><p>No projects yet. Click <strong>New Project</strong> to get started.</p></div>`;
     } else {
       projListEl.innerHTML = recentProjs.map(p => `
         <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${p.client || '—'}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${esc(p.client || '—')} • PM: ${esc(p.assigned_pm || 'Unassigned')}</div>
           </div>
           <span class="badge ${wsBadgeClass(p.workflow_status)}">${wsLabel(p.workflow_status)}</span>
           <span class="badge priority-${p.priority}">${p.priority}</span>
-          <button class="btn btn-ghost btn-sm" onclick="openWorkflow('${p.project_id}')"><i class="fa-solid fa-arrow-right"></i></button>
         </div>
       `).join('');
     }
 
-    // Approvals widget
+    // Plan approvals widget — projects waiting for Admin sign-off
     const appWidget = document.getElementById('admin-approvals-widget');
-    if (approvals.length === 0) {
-      appWidget.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>All clear!</p></div>`;
+    const awaitingPlans = pending.filter(p => p.workflow_status === 'awaiting_admin_approval');
+    if (awaitingPlans.length === 0) {
+      appWidget.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>No pending plan approvals</p></div>`;
     } else {
-      appWidget.innerHTML = approvals.slice(0, 4).map(a => `
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openApprovalDetail('${a.id}')">
-          <div class="user-avatar" style="width:32px;height:32px;font-size:11px">${(a.employee?.name || '?')[0]}</div>
+      appWidget.innerHTML = awaitingPlans.slice(0, 4).map(p => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openApprovalDetail('${p.project_id}')">
+          <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#6C63FF,#4F9AFF);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex-shrink:0">${esc(p.project_name)[0]}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:12px;font-weight:700">${esc(a.employee?.name || '?')}</div>
-            <div style="font-size:11px;color:var(--text-muted)">${esc(a.team_name)} • ${esc(a.project_name)}</div>
+            <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.project_name)}</div>
+            <div style="font-size:11px;color:var(--text-muted)">PM: ${esc(p.assigned_pm || '—')} • Awaiting your approval</div>
           </div>
-          <span class="badge badge-amber">Pending</span>
+          <span class="badge badge-amber">Review</span>
         </div>
       `).join('');
     }
-
-    // Workload chart
-    renderWorkloadChart(metrics.workload_chart || []);
   } catch(e) { console.error(e); }
 }
 
@@ -322,115 +319,122 @@ function openAdminProjectWorkflow(projId) {
 // ADMIN: APPROVALS
 // ═══════════════════════════════════════════════════
 async function loadApprovals() {
-  const status = document.getElementById('approval-filter')?.value || '';
   try {
-    const resp = await fetch(`/api/lead-approvals${status ? '?status=' + status : ''}`);
-    const approvals = await resp.json();
+    const filter = document.getElementById('approval-filter')?.value || '';
+    const resp = await fetch(`/api/admin/pending-projects${filter ? '?status=' + filter : ''}`);
+    const projects = await resp.json();
     const container = document.getElementById('approvals-list');
-    if (approvals.length === 0) {
-      container.innerHTML = `<div class="empty-state card"><i class="fa-solid fa-shield-check" style="font-size:48px;color:var(--text-muted)"></i><h3>No Approvals</h3><p>No team lead approval requests.</p></div>`;
+    
+    // Update badge count
+    const pendingCount = projects.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    const badge = document.getElementById('approval-count-badge');
+    if (badge) {
+      badge.textContent = pendingCount;
+      badge.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+    }
+
+    if (projects.length === 0) {
+      container.innerHTML = `<div class="empty-state card"><i class="fa-solid fa-shield-check" style="font-size:48px;color:var(--text-muted)"></i><h3>No Pending Plans</h3><p>No project execution plans awaiting review.</p></div>`;
       return;
     }
-    container.innerHTML = approvals.map(a => `
-      <div class="approval-card ${a.status === 'pending' ? 'pending' : a.status === 'approved' ? 'approved' : 'rejected'}">
+
+    container.innerHTML = projects.map(p => `
+      <div class="approval-card ${p.workflow_status === 'awaiting_admin_approval' ? 'pending' : p.workflow_status === 'approved' ? 'approved' : 'rejected'}">
         <div class="approval-header">
           <div>
-            <div class="approval-title"><i class="fa-solid fa-crown" style="color:var(--accent-amber)"></i> Team Lead: ${esc(a.team_name)}</div>
-            <div class="approval-sub">Project: ${esc(a.project_name)} • Submitted ${a.created_at ? timeAgo(a.created_at) : '—'}</div>
+            <div class="approval-title"><i class="fa-solid fa-folder-tree" style="color:var(--accent-purple)"></i> Project Plan: ${esc(p.project_name)}</div>
+            <div class="approval-sub">Client: ${esc(p.client || '—')} • PM: ${esc(p.assigned_pm || '—')} • Priority: ${esc(p.priority)}</div>
           </div>
-          <span class="badge ${a.status === 'pending' ? 'badge-amber' : a.status === 'approved' ? 'badge-green' : 'badge-red'}">${a.status}</span>
-        </div>
-        <div class="approval-emp-row">
-          <img class="approval-emp-avatar" src="${a.employee?.photo || ''}" onerror="this.src=''" alt="${esc(a.employee?.name || '?')}" style="background:var(--bg-surface)"/>
           <div>
-            <div class="approval-emp-info-name">${esc(a.employee?.name || '?')}</div>
-            <div class="approval-emp-info-sub">${esc(a.employee?.role || '—')} • ${esc(a.employee?.department || '—')}</div>
-          </div>
-          <div class="approval-metrics" style="margin-left:auto">
-            <div class="approval-metric">
-              <div class="approval-metric-val">${a.employee?.experience || 0}y</div>
-              <div class="approval-metric-lbl">Experience</div>
-            </div>
-            <div class="approval-metric">
-              <div class="approval-metric-val" style="color:var(--accent-green)">${a.employee?.performance_score || 0}%</div>
-              <div class="approval-metric-lbl">Performance</div>
-            </div>
-            <div class="approval-metric">
-              <div class="approval-metric-val">${a.employee?.current_workload || 0}%</div>
-              <div class="approval-metric-lbl">Workload</div>
-            </div>
+            <span class="badge ${wsBadgeClass(p.workflow_status)}">${wsLabel(p.workflow_status)}</span>
           </div>
         </div>
-        ${a.ai_reason ? `<div class="approval-reason"><strong>PM's Reason:</strong> ${esc(a.ai_reason)}</div>` : ''}
-        ${a.alternatives?.length ? `
-          <div style="font-size:12px;color:var(--text-secondary)">
-            <strong>Alternatives:</strong> ${a.alternatives.map(e => esc(e.name)).join(', ')}
-          </div>` : ''}
-        ${a.status === 'pending' ? `
-          <div style="display:flex;gap:10px;justify-content:flex-end">
-            <button class="btn btn-danger btn-sm" onclick="openApprovalDetail('${a.id}')"><i class="fa-solid fa-xmark"></i> Review & Decide</button>
-            <button class="btn btn-success btn-sm" onclick="quickApprove('${a.id}')"><i class="fa-solid fa-check"></i> Quick Approve</button>
-          </div>` :
-          a.admin_comment ? `<div class="approval-reason"><strong>Admin Comment:</strong> ${esc(a.admin_comment)}</div>` : ''
-        }
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+          <div style="font-size:12px; color:var(--text-muted)">Budget: ${esc(p.budget || '—')} • Duration: ${esc(p.estimated_duration || '—')}</div>
+          <div>
+            <button class="btn btn-primary btn-sm" onclick="openApprovalDetail('${p.project_id}')"><i class="fa-solid fa-magnifying-glass"></i> Review Plan & Decide</button>
+          </div>
+        </div>
       </div>
     `).join('');
   } catch(e) { console.error(e); }
 }
 
-function openApprovalDetail(approvalId) {
-  currentApprovalId = approvalId;
+function openApprovalDetail(projId) {
   openModal('modal-approval-detail');
-  fetchAndRenderApprovalDetail(approvalId);
+  fetchAndRenderApprovalDetail(projId);
 }
 
-async function fetchAndRenderApprovalDetail(aid) {
+async function fetchAndRenderApprovalDetail(projId) {
   const body = document.getElementById('approval-detail-body');
   const footer = document.getElementById('approval-detail-footer');
   body.innerHTML = `<div class="empty-state"><div class="spinner"></div></div>`;
+  footer.style.display = 'none';
+
   try {
-    const resp = await fetch(`/api/lead-approvals/${aid}`);
-    const a = await resp.json();
-    const emp = a.employee || {};
+    const resp = await fetch(`/api/projects/${projId}/workflow`);
+    const data = await resp.json();
+    currentProject = data.project;
+
+    const plan = data.project.ai_plan || {};
+    const assignments = plan.assignments || [];
+
+    let planSectionsHtml = aiPlanSectionsKeys.map(s => {
+      const val = plan[s.key] || "";
+      let sectionValText = "";
+      if (Array.isArray(val)) {
+        sectionValText = val.map(v => `• ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('<br/>');
+      } else if (typeof val === 'object') {
+        sectionValText = Object.entries(val).map(([k, v]) => `<strong>${k}:</strong> ${v}`).join('<br/>');
+      } else {
+        sectionValText = val;
+      }
+      return `
+        <div style="margin-bottom:12px; padding:10px; border-bottom:1px solid var(--border)">
+          <div style="font-weight:700; font-size:12px; color:var(--text-secondary); margin-bottom:4px;">${s.label}</div>
+          <div style="font-size:13px; color:var(--text-muted); line-height:1.4;">${sectionValText || '<em>No plan details.</em>'}</div>
+        </div>
+      `;
+    }).join('');
+
+    let assignmentsHtml = assignments.map(a => `
+      <div style="border: 1px solid var(--border); border-radius:6px; padding:10px; margin-bottom:8px; background:rgba(255,255,255,0.01);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:700; font-size:13px;">${esc(a.employee_name)}</div>
+          <div style="font-size:11px; color:var(--accent-purple); font-weight:700;">Fit Match Score: ${a.confidence_score}%</div>
+        </div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Role: ${esc(a.assigned_role)} • Module: ${esc(a.assigned_module)}</div>
+        <div style="font-size:11px; color:var(--text-secondary); margin-top:4px;"><strong>Selection Reason:</strong> ${esc(a.reason_for_selection)}</div>
+      </div>
+    `).join('') || `<div style="font-size:12px; color:var(--text-muted);">No employees assigned.</div>`;
+
     body.innerHTML = `
-      <div class="approval-emp-row" style="margin-bottom:16px">
-        <img class="approval-emp-avatar" src="${emp.photo || ''}" style="width:56px;height:56px" onerror="this.style.display='none'"/>
-        <div>
-          <div style="font-size:16px;font-weight:800">${esc(emp.name || '?')}</div>
-          <div style="font-size:13px;color:var(--text-muted)">${esc(emp.role || '—')} • ${esc(emp.department || '—')}</div>
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div class="card" style="padding:14px; background:rgba(255,255,255,0.01)">
+          <h4 style="font-weight:800; font-size:14px; margin-bottom:8px; color:var(--accent-purple)"><i class="fa-solid fa-wand-magic-sparkles"></i> 23-Section Execution Plan Details</h4>
+          ${planSectionsHtml}
+        </div>
+        <div class="card" style="padding:14px; background:rgba(255,255,255,0.01)">
+          <h4 style="font-weight:800; font-size:14px; margin-bottom:8px; color:var(--accent-green)"><i class="fa-solid fa-users"></i> AI Team Assignment Fit Matrix</h4>
+          ${assignmentsHtml}
         </div>
       </div>
-      <div class="approval-metrics" style="margin-bottom:16px">
-        <div class="approval-metric"><div class="approval-metric-val">${emp.experience || 0} yrs</div><div class="approval-metric-lbl">Experience</div></div>
-        <div class="approval-metric"><div class="approval-metric-val" style="color:var(--accent-green)">${emp.performance_score || 0}%</div><div class="approval-metric-lbl">Performance</div></div>
-        <div class="approval-metric"><div class="approval-metric-val">${emp.completed_projects || 0}</div><div class="approval-metric-lbl">Projects Done</div></div>
-      </div>
-      <div class="info-list" style="margin-bottom:16px">
-        <div class="info-item"><span class="info-key">Skills</span><span class="info-val" style="font-size:11px">${esc(emp.skills || '—')}</span></div>
-        <div class="info-item"><span class="info-key">Current Workload</span><span class="info-val">${emp.current_workload || 0}%</span></div>
-        <div class="info-item"><span class="info-key">Team</span><span class="info-val">${esc(a.team_name || '—')}</span></div>
-        <div class="info-item"><span class="info-key">Project</span><span class="info-val">${esc(a.project_name || '—')}</span></div>
-        <div class="info-item"><span class="info-key">Confidence Score</span><span class="info-val" style="color:var(--accent-purple)">${a.confidence_score || 0}%</span></div>
-      </div>
-      ${a.ai_reason ? `<div class="approval-reason" style="margin-bottom:16px"><strong>PM's Reason:</strong> ${esc(a.ai_reason)}</div>` : ''}
-      ${a.alternatives?.length ? `
-        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text-secondary)">Alternative Candidates:</div>
-        ${a.alternatives.map(ae => `
-          <div style="display:flex;align-items:center;gap:10px;padding:8px;background:var(--bg-surface);border-radius:8px;margin-bottom:6px">
-            <img src="${ae.photo||''}" style="width:32px;height:32px;border-radius:50%;object-fit:cover" onerror="this.style.display='none'"/>
-            <div><div style="font-size:12px;font-weight:700">${esc(ae.name)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(ae.role||'—')}</div></div>
-            <div style="margin-left:auto;font-size:11px;color:var(--text-muted)">${ae.performance_score||0}% perf</div>
-          </div>
-        `).join('')}` : ''}
     `;
-    if (a.status === 'pending') {
+
+    if (data.project.workflow_status === 'awaiting_admin_approval') {
       footer.style.display = 'flex';
     } else {
       footer.style.display = 'none';
-      const existComment = a.admin_comment ? `<div class="approval-reason"><strong>Admin Comment:</strong> ${esc(a.admin_comment)}</div>` : '';
-      body.innerHTML += `<div class="badge ${a.status === 'approved' ? 'badge-green' : 'badge-red'}" style="font-size:13px;padding:8px 16px;margin-top:8px">Decision: ${a.status}</div>${existComment}`;
+      const feedback = data.project.pm_comment ? `<div style="font-size:12px; color:var(--accent-red); margin-top:6px;"><strong>Feedback Log:</strong> ${esc(data.project.pm_comment)}</div>` : '';
+      body.innerHTML += `
+        <div class="badge ${wsBadgeClass(data.project.workflow_status)}" style="font-size:13px; padding:8px 16px; margin-top:12px;">Decision: ${wsLabel(data.project.workflow_status)}</div>
+        ${feedback}
+      `;
     }
-  } catch(e) { console.error(e); body.innerHTML = `<div class="empty-state"><p>Error loading approval.</p></div>`; }
+  } catch(e) {
+    console.error(e);
+    body.innerHTML = `<div class="empty-state"><p>Error fetching plan details.</p></div>`;
+  }
 }
 
 async function decideApproval(decision) {
@@ -622,42 +626,55 @@ async function loadPMsIntoDropdown() {
 }
 
 async function createProject() {
+  // Admin only provides: Name, Description, Client, Priority, Budget, Deadline, PM
   const name     = document.getElementById('cp-name').value.trim();
   const desc     = document.getElementById('cp-desc').value.trim();
   const client   = document.getElementById('cp-client').value.trim();
   const priority = document.getElementById('cp-priority').value;
   const budget   = document.getElementById('cp-budget').value.trim();
-  const deadline = parseInt(document.getElementById('cp-deadline').value);
-  const duration = document.getElementById('cp-duration').value.trim();
-  const teamsize = parseInt(document.getElementById('cp-teamsize').value);
-  const skills   = document.getElementById('cp-skills').value.trim();
-  const tech     = document.getElementById('cp-tech').value.trim();
+  const deadline = parseInt(document.getElementById('cp-deadline').value) || 60;
   const pm_id    = document.getElementById('cp-pm').value;
 
-  if (!name || !desc || !client) { toast('Please fill in required fields.', 'warning'); return; }
+  if (!name || !desc || !client) {
+    toast('Project Name, Description and Client are required.', 'warning');
+    return;
+  }
+  if (!pm_id) {
+    toast('Please select a Project Manager.', 'warning');
+    return;
+  }
 
   try {
     const resp = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        project_name: name, description: desc, client, priority,
-        budget, deadline_days: deadline, estimated_duration: duration,
-        team_size: teamsize, required_skills: skills, preferred_tech: tech,
-        workflow_status: 'draft', created_by: currentUser.id
+        project_name: name,
+        description:  desc,
+        client,
+        priority,
+        budget:          budget || null,
+        deadline_days:   deadline,
+        workflow_status: 'pending_pm',
+        created_by:      currentUser.id
       })
     });
     if (!resp.ok) { toast('Failed to create project.', 'error'); return; }
     const proj = await resp.json();
-    // Assign PM if selected
-    if (pm_id) {
-      await fetch(`/api/projects/${proj.project_id}/assign-pm`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pm_id })
-      });
-    }
-    toast('Project created' + (pm_id ? ' and PM notified!' : '!'), 'success');
+
+    // Assign PM — PM gets notified automatically
+    await fetch(`/api/projects/${proj.project_id}/assign-pm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pm_id })
+    });
+
+    toast('Project created & PM notified!', 'success');
     closeModal('modal-create-project');
+    // Clear form
+    ['cp-name','cp-desc','cp-client','cp-budget'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.value = '';
+    });
     loadAdminProjects();
     loadAdminOverview();
   } catch(e) { console.error(e); toast('Error creating project.', 'error'); }
@@ -794,68 +811,57 @@ async function loadWorkflowView(projId, isAdmin = false) {
 }
 
 function updateWorkflowStepper(status) {
-  const steps = ['review', 'modules', 'teams', 'leads', 'waiting', 'ai', 'review-assign', 'publish'];
   const wsOrder = {
-    'draft': 0, 'pending_pm': 0,
-    'pm_approved': 1, 'changes_requested': 0,
-    'modules_defined': 2,
-    'teams_forming': 3,
-    'leads_pending': 4,
-    'leads_approved': 5,
-    'ai_assigned': 6,
-    'pm_reviewing': 7,
-    'active': 8, 'published': 8
+    'draft': 1,
+    'pending_review': 1,
+    'ai_planning': 3,
+    'ai_assigned': 4,
+    'pm_reviewing': 5,
+    'awaiting_admin_approval': 6,
+    'rejected': 6,
+    'approved': 8,
+    'active': 8
   };
-  const current = wsOrder[status] || 0;
+  const current = wsOrder[status] || 1;
   for (let i = 1; i <= 8; i++) {
     const el = document.getElementById(`step-${i}`);
     if (!el) continue;
     el.classList.remove('active', 'done');
-    if (i - 1 < current) el.classList.add('done');
-    else if (i - 1 === current) el.classList.add('active');
+    if (i < current) el.classList.add('done');
+    else if (i === current) el.classList.add('active');
   }
 }
 
 function showWorkflowPanel(proj, data, isAdmin) {
-  const panels = ['wf-panel-review','wf-panel-modules','wf-panel-teams','wf-panel-leads','wf-panel-waiting','wf-panel-ai','wf-panel-review-assignments','wf-panel-publish'];
+  const panels = ['wf-panel-review', 'wf-panel-ai-plan', 'wf-panel-ai', 'wf-panel-waiting', 'wf-panel-publish'];
   panels.forEach(p => { const el = document.getElementById(p); if (el) el.style.display = 'none'; });
 
   const ws = proj.workflow_status || 'draft';
-  if (ws === 'draft' || ws === 'pending_pm' || ws === 'changes_requested') {
+  if (ws === 'draft' || ws === 'pending_review') {
     showPanel('wf-panel-review');
     populateReviewPanel(proj);
-  } else if (ws === 'pm_approved' || ws === 'modules_defined') {
-    showPanel('wf-panel-modules');
-    renderModulesList(data.modules || []);
-  } else if (ws === 'teams_forming') {
-    showPanel('wf-panel-modules');
-    showPanel('wf-panel-teams');
-    renderModulesList(data.modules || []);
-    renderTeamsList(data.teams || [], data.modules || []);
-  } else if (ws === 'leads_pending') {
-    showPanel('wf-panel-modules');
-    showPanel('wf-panel-teams');
-    showPanel('wf-panel-leads');
-    renderModulesList(data.modules || []);
-    renderTeamsList(data.teams || [], data.modules || []);
-    renderLeadSelectionList(data.teams || [], data.modules || []);
-    // Also show waiting panel if all leads submitted
-    const allSubmitted = (data.teams || []).every(t => t.team_lead_id);
-    if (allSubmitted) {
-      showPanel('wf-panel-waiting');
-      renderApprovalStatusList(data.lead_approvals || []);
-    }
-  } else if (ws === 'leads_approved') {
+  } else if (ws === 'ai_planning') {
+    showPanel('wf-panel-ai-plan');
+    renderAIPlanEditor(proj.ai_plan || {});
+  } else if (ws === 'ai_assigned' || ws === 'pm_reviewing') {
     showPanel('wf-panel-ai');
-  } else if (ws === 'ai_assigned') {
-    showPanel('wf-panel-review-assignments');
-  } else if (ws === 'pm_reviewing') {
-    showPanel('wf-panel-review-assignments');
+    currentAIAssignments = (proj.ai_plan || {}).assignments || [];
+    renderReviewAssignments(currentAIAssignments);
+  } else if (ws === 'awaiting_admin_approval' || ws === 'rejected') {
+    showPanel('wf-panel-waiting');
+    const waitingText = document.getElementById('waiting-status-text');
+    if (ws === 'rejected') {
+      waitingText.innerHTML = `<span style="color:var(--accent-red); font-weight:700">Project Plan Rejected by Admin.</span> Please review feedback below and re-submit.`;
+      document.getElementById('admin-feedback-comment').textContent = proj.pm_comment || 'No feedback comment provided.';
+      // Add edit/re-submit buttons
+      waitingText.innerHTML += `<br/><br/><button class="btn btn-primary" onclick="replanProject()"><i class="fa-solid fa-redo"></i> Re-plan Project</button>`;
+    } else {
+      waitingText.textContent = "The project plan and team assignments have been submitted. Sarah Connor (Admin) has been notified.";
+      document.getElementById('admin-feedback-comment').textContent = "Awaiting decision...";
+    }
+  } else if (ws === 'approved' || ws === 'active') {
     showPanel('wf-panel-publish');
-  } else if (ws === 'active' || ws === 'published') {
-    showPanel('wf-panel-publish');
-    document.getElementById('publish-ready-state').style.display = 'none';
-    document.getElementById('publish-done-state').style.display = 'block';
+    loadActiveSprintDashboard(proj.project_id);
   }
 }
 
@@ -871,424 +877,296 @@ function populateReviewPanel(proj) {
     <div class="info-item"><span class="info-key">Priority</span><span class="info-val"><span class="badge priority-${proj.priority}">${proj.priority}</span></span></div>
     <div class="info-item"><span class="info-key">Budget</span><span class="info-val">${esc(proj.budget || '—')}</span></div>
     <div class="info-item"><span class="info-key">Deadline</span><span class="info-val">${proj.deadline_days || '—'} days</span></div>
-    <div class="info-item"><span class="info-key">Duration</span><span class="info-val">${esc(proj.estimated_duration || '—')}</span></div>
-    <div class="info-item"><span class="info-key">Team Size</span><span class="info-val">${proj.team_size || '—'}</span></div>
+    <div class="info-item"><span class="info-key">Status</span><span class="info-val">${esc(proj.workflow_status || '—')}</span></div>
   `;
-  const skillsEl = document.getElementById('review-skills');
-  const skills = (proj.required_skills || '').split(';').filter(Boolean);
-  skillsEl.innerHTML = skills.map(s => `<span class="skill-chip">${esc(s)}</span>`).join('');
 }
 
-async function pmReview(action) {
-  const comment = document.getElementById('pm-review-comment').value.trim();
-  if (!currentProject) { toast('No project loaded.', 'warning'); return; }
+// ═══════════════════════════════════════════════════
+// STEP 2: AI PLAN GENERATION
+// ═══════════════════════════════════════════════════
+async function triggerAIAnalysis() {
+  const btn = document.getElementById('btn-trigger-analysis');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Running AI Analysis…';
+  }
+  toast('Sending requirements to Groq Llama API...', 'info');
   try {
-    const resp = await fetch(`/api/projects/${currentProject.project_id}/pm-review`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, comment })
+    const resp = await fetch(`/api/projects/${currentProject.project_id}/ai-plan`, {
+      method: 'POST'
     });
     if (resp.ok) {
-      toast(action === 'approve' ? 'Project approved! Now define modules.' : 'Changes requested.', action === 'approve' ? 'success' : 'warning');
+      toast('AI Plan generated successfully!', 'success');
       await loadWorkflowView(currentProject.project_id);
     } else {
-      const err = await resp.json().catch(() => ({}));
-      toast(err.error || `Server error ${resp.status}`, 'error');
+      toast('Failed to analyze with AI.', 'error');
     }
-  } catch(e) { console.error(e); toast('Network error — check connection.', 'error'); }
-}
-
-// ═══════════════════════════════════════════════════
-// MODULES
-// ═══════════════════════════════════════════════════
-function renderModulesList(modules) {
-  const el = document.getElementById('modules-list');
-  if (!modules.length) {
-    el.innerHTML = `<div class="empty-state" style="padding:24px"><i class="fa-solid fa-sitemap"></i><p>Add modules to break the project into components</p></div>`;
-    return;
-  }
-  el.innerHTML = modules.map(m => `
-    <div class="module-card">
-      <div class="module-card-header">
-        <div>
-          <div class="module-name">${esc(m.module_name)}</div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(m.description || '')}</div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <span class="badge ${m.complexity === 'High' ? 'badge-red' : m.complexity === 'Low' ? 'badge-green' : 'badge-amber'}">${m.complexity}</span>
-          <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="deleteModule('${m.module_id}')"><i class="fa-solid fa-trash"></i></button>
-        </div>
-      </div>
-      <div class="module-meta">
-        ${m.estimated_duration ? `<div class="module-meta-item"><i class="fa-solid fa-clock"></i>${esc(m.estimated_duration)}</div>` : ''}
-      </div>
-      <div class="module-skills">
-        ${(m.required_skills || '').split(';').filter(Boolean).map(s => `<span class="skill-chip">${esc(s)}</span>`).join('')}
-      </div>
-    </div>
-  `).join('');
-}
-
-async function addModule() {
-  const name = document.getElementById('mod-name').value.trim();
-  if (!name) { toast('Module name is required.', 'warning'); return; }
-  const body = {
-    module_name: name,
-    description: document.getElementById('mod-desc').value.trim(),
-    estimated_duration: document.getElementById('mod-duration').value.trim(),
-    complexity: document.getElementById('mod-complexity').value,
-    required_skills: document.getElementById('mod-skills').value.trim()
-  };
-  try {
-    await fetch(`/api/projects/${currentProject.project_id}/modules`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    toast('Module added!', 'success');
-    closeModal('modal-add-module');
-    document.getElementById('mod-name').value = '';
-    document.getElementById('mod-desc').value = '';
-    await loadWorkflowView(currentProject.project_id);
-  } catch(e) { console.error(e); }
-}
-
-async function deleteModule(mid) {
-  if (!confirm('Delete this module?')) return;
-  await fetch(`/api/modules/${mid}`, { method: 'DELETE' });
-  toast('Module deleted.', 'success');
-  await loadWorkflowView(currentProject.project_id);
-}
-
-async function proceedToTeams() {
-  const resp = await fetch(`/api/projects/${currentProject.project_id}/modules`);
-  const modules = await resp.json();
-  if (!modules.length) { toast('Add at least one module first.', 'warning'); return; }
-  await fetch(`/api/projects/${currentProject.project_id}/set-status`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ workflow_status: 'teams_forming' })
-  });
-  await loadWorkflowView(currentProject.project_id);
-}
-
-// ═══════════════════════════════════════════════════
-// TEAMS
-// ═══════════════════════════════════════════════════
-let _currentModulesForTeamModal = [];
-function renderTeamsList(teams, modules) {
-  _currentModulesForTeamModal = modules;
-  const el = document.getElementById('teams-list');
-  if (!teams.length) {
-    el.innerHTML = `<div class="empty-state" style="padding:24px;grid-column:1/-1"><i class="fa-solid fa-people-roof"></i><p>Create teams for each module</p></div>`;
-    return;
-  }
-  el.innerHTML = teams.map(t => {
-    const mod = modules.find(m => m.module_id === t.module_id);
-    const members = t.members || [];
-    return `
-      <div class="team-card">
-        <div class="team-card-header">
-          <div>
-            <div class="team-name">${esc(t.team_name)}</div>
-            ${mod ? `<div class="team-module-tag">${esc(mod.module_name)}</div>` : ''}
-          </div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <span class="badge ${t.lead_approved ? 'badge-green' : t.status === 'lead_pending' ? 'badge-amber' : 'badge-default'}">${t.lead_approved ? 'Lead Approved' : t.status}</span>
-            <button class="btn btn-ghost btn-sm" style="color:var(--accent-red)" onclick="deleteTeam('${t.team_id}')"><i class="fa-solid fa-trash"></i></button>
-          </div>
-        </div>
-        <div class="info-list">
-          <div class="info-item"><span class="info-key">Size</span><span class="info-val">${t.team_size} members</span></div>
-          <div class="info-item"><span class="info-key">Skills</span><span class="info-val" style="font-size:11px">${esc((t.required_skills || '').replace(/;/g,', ') || '—')}</span></div>
-        </div>
-        <div class="module-skills">
-          ${(t.required_skills || '').split(';').filter(Boolean).slice(0,4).map(s => `<span class="skill-chip">${esc(s)}</span>`).join('')}
-        </div>
-        ${t.team_lead_id ? `
-          <div class="team-lead-row">
-            <i class="fa-solid fa-crown" style="color:var(--accent-amber)"></i>
-            <div class="team-lead-info-name">Lead: ${esc(t.team_lead_name || t.team_lead_id)}</div>
-            ${t.lead_approved ? '<span class="badge badge-green" style="margin-left:auto">Approved</span>' : '<span class="badge badge-amber" style="margin-left:auto">Pending</span>'}
-          </div>` : `
-          <button class="btn btn-secondary btn-sm w-full" onclick="openLeadModal('${t.team_id}')">
-            <i class="fa-solid fa-crown"></i> Select Team Lead
-          </button>`}
-      </div>
-    `;
-  }).join('');
-}
-
-async function createTeam() {
-  const name   = document.getElementById('team-name').value.trim();
-  const modId  = document.getElementById('team-module').value;
-  const skills = document.getElementById('team-skills').value.trim();
-  const size   = parseInt(document.getElementById('team-size').value);
-  if (!name) { toast('Team name is required.', 'warning'); return; }
-  try {
-    await fetch(`/api/projects/${currentProject.project_id}/teams`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ team_name: name, module_id: modId, required_skills: skills, team_size: size })
-    });
-    toast('Team created!', 'success');
-    closeModal('modal-add-team');
-    document.getElementById('team-name').value = '';
-    await loadWorkflowView(currentProject.project_id);
-  } catch(e) { console.error(e); }
-}
-
-async function deleteTeam(tid) {
-  if (!confirm('Delete this team?')) return;
-  await fetch(`/api/teams/${tid}`, { method: 'DELETE' });
-  toast('Team deleted.', 'success');
-  await loadWorkflowView(currentProject.project_id);
-}
-
-async function proceedToLeadSelection() {
-  const resp = await fetch(`/api/projects/${currentProject.project_id}/teams`);
-  const teams = await resp.json();
-  if (!teams.length) { toast('Create at least one team first.', 'warning'); return; }
-  await loadWorkflowView(currentProject.project_id);
-}
-
-function renderLeadSelectionList(teams, modules) {
-  const el = document.getElementById('lead-selection-list');
-  el.innerHTML = teams.map(t => {
-    const mod = modules.find(m => m.module_id === t.module_id);
-    return `
-      <div class="card" style="border-left:4px solid ${t.lead_approved ? 'var(--accent-green)' : t.team_lead_id ? 'var(--accent-amber)' : 'var(--border)'}">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div>
-            <div style="font-size:14px;font-weight:700">${esc(t.team_name)}</div>
-            ${mod ? `<div style="font-size:11px;color:var(--accent-blue)">${esc(mod.module_name)}</div>` : ''}
-          </div>
-          <span class="badge ${t.lead_approved ? 'badge-green' : t.team_lead_id ? 'badge-amber' : 'badge-default'}">
-            ${t.lead_approved ? '✓ Lead Approved' : t.team_lead_id ? 'Pending Admin Approval' : 'No Lead Selected'}
-          </span>
-        </div>
-        ${!t.lead_approved ? `
-          <button class="btn btn-primary btn-sm" onclick="openLeadModal('${t.team_id}')">
-            <i class="fa-solid fa-crown"></i> ${t.team_lead_id ? 'Change Lead' : 'Select Lead'}
-          </button>
-        ` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-function renderApprovalStatusList(approvals) {
-  const el = document.getElementById('approval-status-list');
-  el.innerHTML = approvals.map(a => `
-    <div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--bg-surface);border-radius:8px;margin-bottom:8px">
-      <span class="badge ${a.status==='pending'?'badge-amber':a.status==='approved'?'badge-green':'badge-red'}">${a.status}</span>
-      <span style="font-weight:600">${esc(a.team_name)}</span>
-      <span style="color:var(--text-muted);font-size:12px">${esc(a.selected_employee_id)}</span>
-    </div>
-  `).join('');
-}
-
-// ═══════════════════════════════════════════════════
-// LEAD SELECTION MODAL
-// ═══════════════════════════════════════════════════
-let _selectedLeadEmpId = null;
-let _selectedLeadScore = 0;
-let _leadModalTeamId   = null;
-
-async function openLeadModal(teamId) {
-  _leadModalTeamId = teamId;
-  _selectedLeadEmpId = null;
-  _selectedLeadScore = 0;
-  document.getElementById('btn-submit-lead').disabled = true;
-
-  // Set team name in modal
-  const resp = await fetch(`/api/teams/${teamId}`);
-  const team = await resp.json();
-  document.getElementById('lead-modal-team-name').textContent = team.team_name;
-
-  openModal('modal-select-lead');
-  loadLeadCandidates(teamId);
-}
-
-async function loadLeadCandidates(teamId) {
-  const tbody = document.getElementById('lead-candidates-tbody');
-  tbody.innerHTML = `<tr><td colspan="10" class="text-center" style="padding:24px"><div class="spinner" style="margin:auto"></div></td></tr>`;
-  try {
-    const resp = await fetch(`/api/teams/${teamId}/score-employees`);
-    const candidates = await resp.json();
-    if (!candidates.length) {
-      tbody.innerHTML = `<tr><td colspan="10"><div class="empty-state" style="padding:24px"><p>No eligible candidates</p></div></td></tr>`;
-      return;
+  } catch(e) {
+    console.error(e);
+    toast('Network error — check connection.', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Analyze with AI';
     }
-    tbody.innerHTML = candidates.map((c, idx) => `
-      <tr class="lead-candidate-row" id="cand-row-${c.employee_id}" onclick="selectLeadCandidate('${c.employee_id}', ${c.confidence})" style="cursor:pointer">
-        <td style="font-size:11px;font-weight:700;color:var(--text-muted)">#${idx+1}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:8px">
-            <img src="${c.photo||''}" style="width:32px;height:32px;border-radius:50%;object-fit:cover"
-              onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(c.name)}&background=6C63FF&color=fff'"/>
-            <div>
-              <div style="font-weight:700;font-size:13px">${esc(c.name)}</div>
-              <div style="font-size:11px;color:var(--text-muted)">${esc(c.role||'—')}</div>
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// STEP 3: REVIEW & EDIT AI PLAN
+// ═══════════════════════════════════════════════════
+const aiPlanSectionsKeys = [
+  { key: "project_summary", label: "Project Summary", type: "text" },
+  { key: "project_objectives", label: "Project Objectives", type: "list" },
+  { key: "project_scope", label: "Project Scope", type: "list" },
+  { key: "functional_modules", label: "Functional Modules (System Modules)", type: "modules" },
+  { key: "non_functional_requirements", label: "Non-functional Requirements", type: "list" },
+  { key: "recommended_technology_stack", label: "Recommended Technology Stack", type: "tech" },
+  { key: "security_recommendations", label: "Security Recommendations", type: "list" },
+  { key: "estimated_team_size", label: "Estimated Team Size", type: "text" },
+  { key: "recommended_roles", label: "Recommended Roles", type: "list" },
+  { key: "number_of_teams_required", label: "Number of Teams Required", type: "number" },
+  { key: "employees_per_team", label: "Employees per Team", type: "number" },
+  { key: "estimated_timeline", label: "Estimated Timeline", type: "timeline" },
+  { key: "estimated_cost", label: "Estimated Cost", type: "text" },
+  { key: "potential_risks", label: "Potential Risks", type: "list" },
+  { key: "risk_mitigation_plan", label: "Risk Mitigation Plan", type: "list" },
+  { key: "project_complexity", label: "Project Complexity", type: "text" },
+  { key: "priority_matrix", label: "Priority Matrix", type: "text" },
+  { key: "expected_deliverables", label: "Expected Deliverables", type: "list" },
+  { key: "success_metrics", label: "Success Metrics", type: "list" },
+  { key: "testing_strategy", label: "Testing Strategy", type: "text" },
+  { key: "deployment_strategy", label: "Deployment Strategy", type: "text" },
+  { key: "maintenance_plan", label: "Maintenance Plan", type: "text" },
+  { key: "project_documentation_checklist", label: "Project Documentation Checklist", type: "list" }
+];
+
+function renderAIPlanEditor(plan) {
+  const container = document.getElementById('ai-plan-editor-sections');
+  if (!container) return;
+
+  container.innerHTML = aiPlanSectionsKeys.map((s, idx) => {
+    const rawVal = plan[s.key] || "";
+    let displayHtml = '';
+    
+    if (s.type === 'text' || s.type === 'number') {
+      displayHtml = `<textarea class="form-control" rows="2" id="plan-input-${s.key}">${rawVal}</textarea>`;
+    } else if (s.type === 'list') {
+      const items = Array.isArray(rawVal) ? rawVal : [];
+      displayHtml = `<textarea class="form-control" rows="3" id="plan-input-${s.key}" placeholder="One item per line">${items.join('\n')}</textarea>`;
+    } else if (s.type === 'tech') {
+      displayHtml = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="form-group"><label class="form-label">Frontend</label><input class="form-control" id="plan-tech-front" value="${rawVal.frontend_technologies || ''}"/></div>
+          <div class="form-group"><label class="form-label">Backend</label><input class="form-control" id="plan-tech-back" value="${rawVal.backend_technologies || ''}"/></div>
+          <div class="form-group"><label class="form-label">Database</label><input class="form-control" id="plan-tech-db" value="${rawVal.database || ''}"/></div>
+          <div class="form-group"><label class="form-label">Cloud Services</label><input class="form-control" id="plan-tech-cloud" value="${rawVal.cloud_services || ''}"/></div>
+          <div class="form-group"><label class="form-label">DevOps</label><input class="form-control" id="plan-tech-devops" value="${rawVal.devops_tools || ''}"/></div>
+        </div>
+      `;
+    } else if (s.type === 'modules') {
+      const mods = Array.isArray(rawVal) ? rawVal : [];
+      displayHtml = mods.map((m, mIdx) => `
+        <div style="border: 1px solid var(--border); padding:10px; border-radius:6px; margin-bottom:8px; display:flex; flex-direction:column; gap:6px;">
+          <div style="font-weight:700">Module ${mIdx+1}</div>
+          <div class="form-group"><label class="form-label">Name</label><input class="form-control" id="plan-mod-name-${mIdx}" value="${m.module_name || ''}"/></div>
+          <div class="form-group"><label class="form-label">Description</label><input class="form-control" id="plan-mod-desc-${mIdx}" value="${m.description || ''}"/></div>
+          <div class="form-group"><label class="form-label">Skills Required</label><input class="form-control" id="plan-mod-skills-${mIdx}" value="${m.required_skills || ''}"/></div>
+        </div>
+      `).join('') + `<button class="btn btn-secondary btn-sm" onclick="addModuleToAIPlan()"><i class="fa-solid fa-plus"></i> Add Module</button>`;
+    } else if (s.type === 'timeline') {
+      const phases = Array.isArray(rawVal.project_phases) ? rawVal.project_phases : [];
+      displayHtml = `
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div class="form-group"><label class="form-label">Total Duration</label><input class="form-control" id="plan-timeline-total" value="${rawVal.total_duration || ''}"/></div>
+          <div style="font-weight:700; margin-top:6px;">Phases:</div>
+          ${phases.map((p, pIdx) => `
+            <div style="display:flex; gap:10px;">
+              <input class="form-control" style="flex:2" id="plan-timeline-phase-name-${pIdx}" value="${p.phase || ''}"/>
+              <input class="form-control" style="flex:1" id="plan-timeline-phase-dur-${pIdx}" value="${p.duration || ''}"/>
             </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    return `
+      <div class="accordion-item" style="border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom: 8px;">
+        <div class="accordion-header" onclick="toggleAccordion('acc-${s.key}')" style="background:rgba(255,255,255,0.02); padding:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+          <span style="font-weight:700; font-size:13px;"><i class="fa-solid fa-chevron-right" id="icon-acc-${s.key}" style="margin-right:8px; transition:transform 0.2s;"></i> ${s.label}</span>
+          <span style="font-size:11px; color:var(--text-muted)">Editable</span>
+        </div>
+        <div class="accordion-body" id="body-acc-${s.key}" style="display:none; padding:16px; border-top:1px solid var(--border)">
+          ${displayHtml}
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px">
+            <button class="btn btn-secondary btn-sm" style="color:var(--accent-red)" onclick="deletePlanSection('${s.key}')"><i class="fa-solid fa-trash"></i> Clear</button>
+            <button class="btn btn-primary btn-sm" onclick="savePlanSection('${s.key}', ${idx})"><i class="fa-solid fa-save"></i> Save Section</button>
           </div>
-        </td>
-        <td style="font-size:12px;color:var(--text-secondary)">${esc(c.department||'—')}</td>
-        <td style="font-size:12px">${c.experience}y</td>
-        <td><span style="font-size:12px;font-weight:700;color:var(--accent-green)">${c.performance_score}%</span></td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div class="progress-bar" style="width:60px"><div class="progress-fill ${c.current_workload>70?'red':c.current_workload>50?'amber':''}" style="width:${c.current_workload}%"></div></div>
-            <span style="font-size:11px">${c.current_workload}%</span>
-          </div>
-        </td>
-        <td style="font-size:12px">${c.completed_projects}</td>
-        <td>
-          <div style="display:flex;align-items:center;gap:6px">
-            <div class="progress-bar" style="width:60px"><div class="progress-fill" style="width:${c.skill_match}%"></div></div>
-            <span style="font-size:11px">${c.skill_match}%</span>
-          </div>
-        </td>
-        <td>
-          <div style="display:flex;align-items:center;gap:4px">
-            <div class="progress-bar" style="width:60px"><div class="progress-fill ${c.confidence<50?'red':c.confidence<70?'amber':''}" style="width:${c.confidence}%"></div></div>
-            <span style="font-size:11px;font-weight:700;color:${c.confidence>=70?'var(--accent-green)':c.confidence>=50?'var(--accent-amber)':'var(--accent-red)'}">${c.confidence}%</span>
-          </div>
-        </td>
-        <td>
-          <input type="radio" name="lead-candidate" value="${c.employee_id}" style="accent-color:var(--accent-purple)"/>
-        </td>
-      </tr>
-    `).join('');
-    // Store alternatives
-    window._leadCandidates = candidates;
-  } catch(e) { console.error(e); }
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
-function selectLeadCandidate(empId, confidence) {
-  _selectedLeadEmpId = empId;
-  _selectedLeadScore = confidence;
-  document.getElementById('btn-submit-lead').disabled = false;
-  document.querySelectorAll('.lead-candidate-row').forEach(row => {
-    row.style.background = '';
-    row.style.borderLeft = '';
-  });
-  const row = document.getElementById(`cand-row-${empId}`);
-  if (row) {
-    row.style.background = 'rgba(108,99,255,0.08)';
-    row.style.borderLeft = '3px solid var(--accent-purple)';
+function toggleAccordion(id) {
+  const el = document.getElementById(`body-${id}`);
+  const icon = document.getElementById(`icon-${id}`);
+  if (el) {
+    const isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? 'block' : 'none';
+    if (icon) icon.style.transform = isHidden ? 'rotate(90deg)' : 'rotate(0deg)';
   }
-  // Check radio
-  const radio = row?.querySelector('input[type=radio]');
-  if (radio) radio.checked = true;
 }
 
-async function submitLeadSelection() {
-  if (!_selectedLeadEmpId) { toast('Please select a candidate.', 'warning'); return; }
-  const reason = document.getElementById('lead-selection-reason').value.trim();
-  const altIds = (window._leadCandidates || [])
-    .filter(c => c.employee_id !== _selectedLeadEmpId)
-    .slice(0, 2)
-    .map(c => c.employee_id);
+async function savePlanSection(key, idx) {
+  const plan = currentProject.ai_plan || {};
+  const s = aiPlanSectionsKeys[idx];
 
+  if (s.type === 'text' || s.type === 'number') {
+    plan[key] = document.getElementById(`plan-input-${key}`).value;
+  } else if (s.type === 'list') {
+    plan[key] = document.getElementById(`plan-input-${key}`).value.split('\n').map(l => l.trim()).filter(Boolean);
+  } else if (s.type === 'tech') {
+    plan[key] = {
+      frontend_technologies: document.getElementById('plan-tech-front').value,
+      backend_technologies: document.getElementById('plan-tech-back').value,
+      database: document.getElementById('plan-tech-db').value,
+      cloud_services: document.getElementById('plan-tech-cloud').value,
+      devops_tools: document.getElementById('plan-tech-devops').value
+    };
+  } else if (s.type === 'modules') {
+    const mods = plan[key] || [];
+    mods.forEach((m, mIdx) => {
+      m.module_name = document.getElementById(`plan-mod-name-${mIdx}`).value;
+      m.description = document.getElementById(`plan-mod-desc-${mIdx}`).value;
+      m.required_skills = document.getElementById(`plan-mod-skills-${mIdx}`).value;
+    });
+    plan[key] = mods;
+  } else if (s.type === 'timeline') {
+    const timeline = plan[key] || {};
+    timeline.total_duration = document.getElementById('plan-timeline-total').value;
+    const phases = timeline.project_phases || [];
+    phases.forEach((p, pIdx) => {
+      p.phase = document.getElementById(`plan-timeline-phase-name-${pIdx}`).value;
+      p.duration = document.getElementById(`plan-timeline-phase-dur-${pIdx}`).value;
+    });
+    timeline.project_phases = phases;
+    plan[key] = timeline;
+  }
+
+  // Update DB
   try {
-    const resp = await fetch(`/api/teams/${_leadModalTeamId}/select-lead`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        employee_id: _selectedLeadEmpId,
-        reason: reason || 'Best overall candidate score.',
-        confidence: _selectedLeadScore,
-        alternative_ids: altIds
-      })
+    const resp = await fetch(`/api/projects/${currentProject.project_id}/ai-plan`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ai_plan: plan })
     });
     if (resp.ok) {
-      toast('Lead selection submitted! Waiting for Admin approval.', 'success');
-      closeModal('modal-select-lead');
-      await loadWorkflowView(currentProject.project_id);
+      toast(`${s.label} section saved!`, 'success');
+      currentProject.ai_plan = plan;
     } else {
-      toast('Failed to submit lead selection.', 'error');
+      toast('Failed to save section.', 'error');
     }
   } catch(e) { console.error(e); }
 }
 
+function deletePlanSection(key) {
+  const plan = currentProject.ai_plan || {};
+  if (Array.isArray(plan[key])) plan[key] = [];
+  else if (typeof plan[key] === 'object') plan[key] = {};
+  else plan[key] = "";
+  
+  toast('Section cleared locally. Click Save to apply.', 'warning');
+  renderAIPlanEditor(plan);
+}
+
+function addModuleToAIPlan() {
+  const plan = currentProject.ai_plan || {};
+  if (!plan.functional_modules) plan.functional_modules = [];
+  plan.functional_modules.push({
+    module_name: "New Functional Module",
+    description: "Brief module responsibility details...",
+    required_skills: "Python;React;SQL",
+    complexity: "Medium",
+    duration: "2 weeks"
+  });
+  renderAIPlanEditor(plan);
+}
+
+async function approveAIPlan() {
+  toast('AI Plan approved! Automatically triggering assignments engine...', 'info');
+  await runFullAIAssignment();
+}
+
 // ═══════════════════════════════════════════════════
-// AI ASSIGNMENT
+// STEP 4 & 5: AI EMPLOYEE TEAM ASSIGNMENTS
 // ═══════════════════════════════════════════════════
 async function runFullAIAssignment() {
   const btn = document.getElementById('btn-run-ai');
-  btn.disabled = true;
-  btn.innerHTML = '<div class="spinner"></div> Running AI…';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div> Generating Assignments…';
+  }
   document.getElementById('ai-assignment-results').innerHTML =
-    `<div class="empty-state"><div class="spinner spinner-lg"></div><p>AI is scoring ${20} employees across all teams…</p></div>`;
+    `<div class="empty-state"><div class="spinner spinner-lg"></div><p>AI Engine is analyzing employee dataset and forming modules teams…</p></div>`;
 
   try {
     const resp = await fetch(`/api/projects/${currentProject.project_id}/ai-assign-all`, {
       method: 'POST'
     });
-    if (!resp.ok) { toast('AI assignment failed.', 'error'); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Run AI Assignment Engine'; return; }
+    if (!resp.ok) {
+      toast('AI assignment failed.', 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Team Assignment';
+      }
+      return;
+    }
     const data = await resp.json();
     currentAIAssignments = data.assignments || [];
-    toast(`AI assigned ${currentAIAssignments.length} employees!`, 'success');
-    // Move to review panel
+    toast(`AI successfully formed teams and assigned employees!`, 'success');
     await loadWorkflowView(currentProject.project_id);
-    renderReviewAssignments(currentAIAssignments);
   } catch(e) {
     console.error(e);
-    toast('Error running AI.', 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Re-run AI';
+    toast('Error running assignment engine.', 'error');
   }
 }
 
 function renderReviewAssignments(assignments) {
-  const container = document.getElementById('review-assignments-list');
+  const container = document.getElementById('ai-assignment-results');
   if (!container) return;
+  
   if (!assignments.length) {
-    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-robot"></i><p>No assignments generated. Ensure teams have approved leads.</p></div>`;
+    container.innerHTML = `<div class="empty-state"><i class="fa-solid fa-robot"></i><p>No team assignments generated yet. Click 'Generate Team Assignment'.</p></div>`;
+    document.getElementById('pm-submit-admin-wrap').style.display = 'none';
     return;
   }
-  // Group by team
+  // Group by team/module name
   const byTeam = {};
   assignments.forEach(a => {
-    if (!byTeam[a.team_id]) byTeam[a.team_id] = { team_name: a.team_name, members: [] };
-    byTeam[a.team_id].members.push(a);
+    const key = a.team_name || "Unassigned Module Team";
+    if (!byTeam[key]) byTeam[key] = [];
+    byTeam[key].push(a);
   });
 
-  container.innerHTML = Object.entries(byTeam).map(([tid, group]) => `
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa-solid fa-people-group"></i> ${esc(group.team_name)}</div>
-        <span class="badge badge-green">${group.members.length} members assigned</span>
+  container.innerHTML = Object.entries(byTeam).map(([teamName, members]) => `
+    <div class="card mb-16">
+      <div class="card-header" style="background: rgba(255,255,255,0.01); padding: 12px 16px;">
+        <div class="card-title"><i class="fa-solid fa-people-group"></i> ${esc(teamName)} — ${esc(members[0].assigned_module)}</div>
+        <span class="badge badge-purple">${members.length} Employees Assigned</span>
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${group.members.map((a, idx) => `
-          <div class="ai-decision-card" id="ai-card-${a.id}" style="padding-left:24px">
-            <div class="ai-card-header">
-              <img class="ai-card-avatar" src="${'https://ui-avatars.com/api/?name=' + encodeURIComponent(a.employee_name) + '&background=6C63FF&color=fff'}" alt="${esc(a.employee_name)}"/>
-              <div class="ai-card-emp-info">
-                <div class="ai-card-emp-name">${esc(a.employee_name)}</div>
-                <div class="ai-card-emp-role">${esc(a.assigned_role)}</div>
+      <div style="display:flex; flex-direction:column; gap:12px; padding: 16px;">
+        ${members.map((a, idx) => `
+          <div class="ai-decision-card" style="margin-bottom:0; border: 1px solid var(--border); padding: 16px; border-radius: 8px; background: rgba(255,255,255,0.01);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <div style="display:flex; gap:12px; align-items:center;">
+                <img style="width:36px; height:36px; border-radius:50%; object-fit:cover;" src="https://ui-avatars.com/api/?name=${encodeURIComponent(a.employee_name)}&background=6C63FF&color=fff"/>
+                <div>
+                  <div style="font-weight:800; font-size:14px;">${esc(a.employee_name)}</div>
+                  <div style="font-size:12px; color:var(--text-muted);">${esc(a.assigned_role)}</div>
+                </div>
               </div>
               <div style="text-align:right">
-                <div style="font-size:20px;font-weight:800;color:var(--accent-purple)">${a.ai_confidence}%</div>
-                <div style="font-size:10px;color:var(--text-muted)">Confidence</div>
-              </div>
-            </div>
-
-            <div class="ai-metric-bars">
-              <div class="ai-metric-bar">
-                <div class="ai-metric-label">Skill Match</div>
-                <div class="ai-metric-track"><div class="ai-metric-fill" style="width:${a.skill_match}%"></div></div>
-                <div class="ai-metric-val">${a.skill_match}%</div>
-              </div>
-              <div class="ai-metric-bar">
-                <div class="ai-metric-label">Experience</div>
-                <div class="ai-metric-track"><div class="ai-metric-fill green" style="width:${a.experience_pct}%"></div></div>
-                <div class="ai-metric-val">${a.experience_pct}%</div>
-              </div>
-              <div class="ai-metric-bar">
-                <div class="ai-metric-label">Availability</div>
-                <div class="ai-metric-track"><div class="ai-metric-fill amber" style="width:${a.availability_pct}%"></div></div>
-                <div class="ai-metric-val">${a.availability_pct}%</div>
-              </div>
-              <div class="ai-metric-bar">
                 <div class="ai-metric-label">Performance</div>
                 <div class="ai-metric-track"><div class="ai-metric-fill green" style="width:${a.performance}%"></div></div>
                 <div class="ai-metric-val">${a.performance}%</div>
@@ -1621,7 +1499,7 @@ async function loadEmpTasks() {
       return;
     }
     container.innerHTML = mine.map(t => `
-      <div class="card">
+      <div class="card" style="border-left: 4px solid ${t.help_requested ? 'var(--accent-red)' : t.status === 'Completed' ? 'var(--accent-green)' : 'var(--accent-blue)'}">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px">
           <div>
             <div style="font-size:15px;font-weight:700;margin-bottom:4px">${esc(t.task_name)}</div>
@@ -1632,14 +1510,52 @@ async function loadEmpTasks() {
             <span class="badge ${t.status==='Completed'?'badge-green':t.status==='In Progress'?'badge-blue':'badge-default'}">${t.status}</span>
           </div>
         </div>
+        
+        ${t.help_requested ? `
+          <div style="background:rgba(255, 77, 77, 0.08); border-radius:6px; padding:8px 12px; font-size:11px; color:var(--accent-red); margin-bottom:12px; font-weight:700;">
+            <i class="fa-solid fa-triangle-exclamation"></i> HELP REQUESTED: "${esc(t.help_comment || '')}"
+          </div>
+        ` : ''}
+
         <div class="info-list" style="margin-bottom:12px">
           <div class="info-item"><span class="info-key">Deadline</span><span class="info-val">${t.deadline || '—'}</span></div>
           <div class="info-item"><span class="info-key">Est. Hours</span><span class="info-val">${t.estimated_hours || 0}h</span></div>
+          <div class="info-item">
+            <span class="info-key">Progress</span>
+            <span class="info-val" style="font-weight:700">${t.progress_percent || 0}%</span>
+          </div>
         </div>
+
+        <!-- Task Update Controls -->
         ${t.status !== 'Completed' ? `
-          <div style="display:flex;gap:8px">
-            ${t.status === 'To Do' ? `<button class="btn btn-primary btn-sm" onclick="updateTaskStatus('${t.id}', 'In Progress')"><i class="fa-solid fa-play"></i> Start Task</button>` : ''}
-            ${t.status === 'In Progress' ? `<button class="btn btn-success btn-sm" onclick="updateTaskStatus('${t.id}', 'Review')"><i class="fa-solid fa-paper-plane"></i> Submit for Review</button>` : ''}
+          <div style="display:flex; flex-direction:column; gap:10px; padding:12px; border:1px solid var(--border); border-radius:6px; margin-bottom:12px; background:rgba(255,255,255,0.01)">
+            <!-- Status Transitions -->
+            <div style="display:flex; gap:8px;">
+              ${t.status === 'To Do' ? `<button class="btn btn-primary btn-sm" onclick="updateTaskStatus('${t.id}', 'In Progress')"><i class="fa-solid fa-play"></i> Start Task</button>` : ''}
+              ${t.status === 'In Progress' ? `<button class="btn btn-success btn-sm" onclick="updateTaskStatus('${t.id}', 'Review')"><i class="fa-solid fa-paper-plane"></i> Submit for Review</button>` : ''}
+            </div>
+
+            <!-- Progress range slider -->
+            <div class="form-group" style="margin: 0;">
+              <label class="form-label" style="display:flex; justify-content:space-between; font-size:11px;">
+                <span>Update Progress %</span>
+                <span>${t.progress_percent || 0}%</span>
+              </label>
+              <input type="range" class="form-control" min="0" max="100" value="${t.progress_percent || 0}" onchange="updateTaskProgress('${t.id}', this.value)" style="padding: 0; background: transparent; cursor: pointer;"/>
+            </div>
+
+            <!-- Deliverable & Comments -->
+            <div style="display:flex; gap:8px;">
+              <input class="form-control" id="task-comment-input-${t.id}" style="font-size:11px;" placeholder="Add progress comment..."/>
+              <button class="btn btn-secondary btn-sm" onclick="submitTaskComment('${t.id}')">Post</button>
+            </div>
+
+            <!-- Help Request Toggle -->
+            <div style="display:flex; justify-content:flex-end; border-top: 1px solid var(--border); padding-top: 8px;">
+              <button class="btn btn-ghost btn-sm" style="color:var(--accent-amber); font-size:11px; padding: 4px;" onclick="promptRequestHelp('${t.id}', ${t.help_requested})">
+                <i class="fa-solid fa-hands-helping"></i> ${t.help_requested ? 'Cancel Help Request' : 'Request Help (Critical flag)'}
+              </button>
+            </div>
           </div>
         ` : `<span class="badge badge-green"><i class="fa-solid fa-check"></i> Completed</span>`}
       </div>
@@ -1657,6 +1573,73 @@ async function updateTaskStatus(taskId, status) {
     loadEmpTasks();
   } catch(e) { console.error(e); }
 }
+
+async function updateTaskProgress(taskId, progress) {
+  try {
+    await fetch(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ progress_percent: parseInt(progress) })
+    });
+    toast('Progress updated!', 'success');
+    loadEmpTasks();
+  } catch(e) { console.error(e); }
+}
+
+async function submitTaskComment(taskId) {
+  const commentInput = document.getElementById(`task-comment-input-${taskId}`);
+  const comment = commentInput ? commentInput.value.trim() : "";
+  if (!comment) return;
+
+  try {
+    const resp = await fetch(`/api/tasks/${taskId}`);
+    const task = await resp.json();
+    const commentsList = Array.isArray(task.comments) ? task.comments : [];
+    commentsList.push({
+      author: currentUser.full_name,
+      text: comment,
+      timestamp: new Date().toISOString()
+    });
+
+    await fetch(`/api/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ comments: commentsList })
+    });
+
+    toast('Comment posted!', 'success');
+    if (commentInput) commentInput.value = "";
+    loadEmpTasks();
+  } catch(e) { console.error(e); }
+}
+
+async function promptRequestHelp(taskId, currentlyRequested) {
+  if (currentlyRequested) {
+    if (!confirm('Cancel help request on this task?')) return;
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ help_requested: false, help_comment: '' })
+      });
+      toast('Help request cancelled.', 'success');
+      loadEmpTasks();
+    } catch(e) { console.error(e); }
+  } else {
+    const reason = prompt('Please explain what help is required (sent to PM):');
+    if (!reason) return;
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ help_requested: true, help_comment: reason })
+      });
+      toast('Help request sent to Project Manager!', 'warning');
+      loadEmpTasks();
+    } catch(e) { console.error(e); }
+  }
+}
+
 
 async function loadEmpProfile() {
   try {

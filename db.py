@@ -13,7 +13,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+    "postgresql://postgres:ADITHYAGOUD%40789@db.jxnacpjbrnbihgmcydwr.supabase.co:5432/postgres"
 )
 
 # Auto-adapt direct IPv6 Supabase hosts to IPv4 Pooler when running on Vercel
@@ -21,8 +21,10 @@ if os.environ.get('VERCEL') and DATABASE_URL:
     match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", DATABASE_URL)
     if match:
         project_ref = match.group(1)
-        DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", "aws-0-ap-southeast-1.pooler.supabase.com:6543")
+        pooler_region = "ap-south-1" if project_ref == "jxnacpjbrnbihgmcydwr" else "ap-southeast-1"
+        DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", f"aws-0-{pooler_region}.pooler.supabase.com:6543")
         DATABASE_URL = DATABASE_URL.replace("postgresql://postgres:", f"postgresql://postgres.{project_ref}:")
+
 
 # ──────────────────────────────────────────────────────────────
 # CONNECTION POOL  (min=1, max=5, reused across requests)
@@ -277,12 +279,20 @@ def add_notification(user_id: str, title: str, message: str, notif_type: str = "
 
 def seed_database():
     try:
-        # Quick check — uses the pool just like any other query
-        row = _execute("SELECT COUNT(*) as cnt FROM public.users;", fetch="one")
-        user_count = row["cnt"] if row else 0
+        # Quick check — see if users table exists first using information_schema
+        table_exists_row = _execute(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') as exists;",
+            fetch="one"
+        )
+        table_exists = table_exists_row["exists"] if table_exists_row else False
 
-        if user_count == 0:
-            print("[DB] Database is empty. Bootstrapping schemas and seeds...")
+        user_count = 0
+        if table_exists:
+            row = _execute("SELECT COUNT(*) as cnt FROM public.users;", fetch="one")
+            user_count = row["cnt"] if row else 0
+
+        if not table_exists or user_count == 0:
+            print("[DB] Database is empty or users table missing. Bootstrapping schemas and seeds...")
             base_dir = os.path.dirname(os.path.abspath(__file__))
             sql_paths = [
                 os.path.join(base_dir, "supabase_schema.sql"),
@@ -305,7 +315,16 @@ def seed_database():
                     with conn.cursor() as cur:
                         cur.execute(sql_content)
                     conn.autocommit = False
-                    print("[DB] Database initialized successfully.")
+                    print("[DB] Database initialized with supabase_schema.sql.")
+                    
+                    # Run additional v2 migrations
+                    try:
+                        import migrate_v2
+                        print("[DB] Running migrate_v2.py...")
+                        migrate_v2.run()
+                        print("[DB] migrate_v2.py completed.")
+                    except Exception as migration_error:
+                        print(f"[DB ERROR] migrate_v2 run failed: {migration_error}")
                 except Exception as e:
                     print(f"[DB ERROR] seed DDL failed: {e}")
                 finally:
@@ -315,5 +334,5 @@ def seed_database():
             else:
                 print("[DB ERROR] Could not find supabase_schema.sql for bootstrap.")
     except Exception as e:
-        # Table may not exist yet — that's handled above; log and continue
-        print(f"[DB] seed_database note: {e}")
+        print(f"[DB ERROR] seed_database failed: {e}")
+

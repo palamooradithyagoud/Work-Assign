@@ -168,14 +168,30 @@ INSERT INTO public.tools (tool_id, tool_name, tool_type, purpose) VALUES
 ('T005', 'LangChain', 'AI Framework', 'Agent orchestration and tool integration')
 ON CONFLICT (tool_id) DO NOTHING;
 
--- Seed Employees (exactly from Table 2)
-INSERT INTO public.employees (employee_id, name, role, skills, experience, current_workload, photo, department, created_at) VALUES
-('EMP001', 'Aarav Sharma', 'AI Engineer', 'Python;LLMs;PyTorch;LangChain;API Integration;Prompt Engineering', 4, 40, 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150', 'AI Engineering', '2026-07-08T00:00:00Z'),
-('EMP002', 'Riya Patel', 'Data Scientist', 'Python;Data Analysis;Pandas;SQL;Tableau;Scikit-Learn', 3, 35, 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150', 'Data Science', '2026-07-08T00:00:00Z'),
-('EMP003', 'Vikram Singh', 'Backend Developer', 'Node.js;API Integration;Express;MongoDB;PostgreSQL;Redis', 5, 50, 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150', 'Engineering', '2026-07-08T00:00:00Z'),
-('EMP004', 'Sneha Reddy', 'Frontend Developer', 'React;UI/UX Design;Figma;TypeScript;HTML5;CSS3', 2, 30, 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150', 'Engineering', '2026-07-08T00:00:00Z'),
-('EMP005', 'Karthik Rao', 'DevOps Engineer', 'Docker;Kubernetes;AWS;Terraform;CI/CD;Linux', 4, 45, 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', 'Infrastructure', '2026-07-08T00:00:00Z'),
-('EMP006', 'Meera Nair', 'AI Researcher', 'LLMs;NLP;Python;PyTorch;Research Methods;Transformers', 6, 55, 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150', 'AI Research', '2026-07-08T00:00:00Z')
+-- Seed Employees (20 employees across 9 departments)
+INSERT INTO public.employees (employee_id, name, role, skills, experience, current_workload, photo, department, email, created_at) VALUES
+-- Original 6
+('EMP001', 'Aarav Sharma',     'AI Engineer',           'Python;LLMs;PyTorch;LangChain;API Integration;Prompt Engineering',    4, 40, 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150',  'AI Engineering',    'aarav@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP002', 'Riya Patel',       'Data Scientist',        'Python;Data Analysis;Pandas;SQL;Tableau;Scikit-Learn',                3, 35, 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',  'Data Science',      'riya@assigniq.com',      '2026-07-08T00:00:00Z'),
+('EMP003', 'Vikram Singh',     'Backend Developer',     'Node.js;API Integration;Express;MongoDB;PostgreSQL;Redis',            5, 50, 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150',    'Engineering',       'vikram@assigniq.com',    '2026-07-08T00:00:00Z'),
+('EMP004', 'Sneha Reddy',      'Frontend Developer',    'React;UI/UX Design;Figma;TypeScript;HTML5;CSS3',                      2, 30, 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',    'Engineering',       'sneha@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP005', 'Karthik Rao',      'DevOps Engineer',       'Docker;Kubernetes;AWS;Terraform;CI/CD;Linux',                         4, 45, 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150', 'Infrastructure',    'karthik@assigniq.com',   '2026-07-08T00:00:00Z'),
+('EMP006', 'Meera Nair',       'AI Researcher',         'LLMs;NLP;Python;PyTorch;Research Methods;Transformers',               6, 55, 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150', 'AI Research',       'employee@assigniq.com',  '2026-07-08T00:00:00Z'),
+-- 14 new employees
+('EMP007', 'Arjun Mehta',      'Full Stack Developer',  'React;Node.js;PostgreSQL;GraphQL;TypeScript;Docker',                  3, 40, 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 'Engineering',       'arjun@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP008', 'Priya Krishnan',   'ML Engineer',           'Python;TensorFlow;Keras;Scikit-Learn;MLflow;Pandas',                  4, 30, 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', 'Data Science',      'priya@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP009', 'Rohit Verma',      'Cloud Architect',       'AWS;Azure;GCP;Terraform;Kubernetes;Ansible',                          7, 55, 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150', 'Infrastructure',    'rohit@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP010', 'Ananya Iyer',      'UI/UX Designer',        'Figma;Adobe XD;HTML5;CSS3;User Research;Prototyping',                 3, 25, 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', 'Design',            'ananya@assigniq.com',    '2026-07-08T00:00:00Z'),
+('EMP011', 'Siddharth Pillai', 'Data Engineer',         'Apache Spark;Kafka;Airflow;Python;SQL;Snowflake',                     5, 60, 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', 'Data Engineering',  'siddharth@assigniq.com', '2026-07-08T00:00:00Z'),
+('EMP012', 'Kavya Menon',      'NLP Engineer',          'NLP;Transformers;BERT;Python;HuggingFace;SpaCy',                      4, 35, 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'AI Research',       'kavya@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP013', 'Rahul Desai',      'Backend Developer',     'Java;Spring Boot;Microservices;PostgreSQL;Redis;Kafka',                6, 50, 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150', 'Engineering',       'rahul@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP014', 'Ishaan Kapoor',    'Cybersecurity Analyst', 'Penetration Testing;OWASP;Python;Network Security;SIEM;Linux',        5, 40, 'https://images.unsplash.com/photo-1463453091185-61582044d556?w=150', 'Security',          'ishaan@assigniq.com',    '2026-07-08T00:00:00Z'),
+('EMP015', 'Divya Bhatt',      'Product Manager',       'Agile;Scrum;JIRA;Roadmapping;Stakeholder Management;OKRs',            6, 45, 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=150', 'Product',           'divya@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP016', 'Nikhil Joshi',     'QA Engineer',           'Selenium;Pytest;Postman;JUnit;CI/CD;Test Automation',                 3, 20, 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=150', 'Quality Assurance', 'nikhil@assigniq.com',    '2026-07-08T00:00:00Z'),
+('EMP017', 'Tanvi Choudhary',  'Computer Vision Eng',   'OpenCV;PyTorch;YOLO;TensorFlow;Python;Image Processing',              4, 35, 'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?w=150',   'AI Engineering',    'tanvi@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP018', 'Aditya Saxena',    'Database Administrator','PostgreSQL;MySQL;MongoDB;Redis;Query Optimization;Backup',             8, 30, 'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?w=150', 'Infrastructure',    'aditya@assigniq.com',    '2026-07-08T00:00:00Z'),
+('EMP019', 'Pooja Sharma',     'Data Analyst',          'SQL;Python;Tableau;Power BI;Excel;Statistics',                        2, 15, 'https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=150', 'Data Science',      'pooja@assigniq.com',     '2026-07-08T00:00:00Z'),
+('EMP020', 'Yash Gupta',       'Mobile Developer',      'Flutter;React Native;Swift;Kotlin;Firebase;REST APIs',                3, 40, 'https://images.unsplash.com/photo-1521119989659-a83eee488004?w=150', 'Engineering',       'yash@assigniq.com',      '2026-07-08T00:00:00Z')
 ON CONFLICT (employee_id) DO NOTHING;
 
 -- Seed Project History (exactly from Table 3)

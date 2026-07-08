@@ -360,7 +360,7 @@
     function quickFill(email, password) {
       document.getElementById("email").value = email;
       document.getElementById("password").value = password;
-      document.getElementById("login-form").dispatchEvent(new Event("submit"));
+      document.getElementById("login-form").requestSubmit();
     }
 
     document.getElementById("login-form").addEventListener("submit", async (e) => {

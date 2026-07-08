@@ -40,13 +40,15 @@ CREATE TABLE public.tools (
 CREATE TABLE public.employees (
     employee_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    role TEXT NOT NULL,
-    skills TEXT NOT NULL, -- semicolon-separated
-    experience INTEGER NOT NULL,
-    current_workload INTEGER NOT NULL,
+    role TEXT DEFAULT 'employee',
+    skills TEXT DEFAULT '',
+    experience INTEGER DEFAULT 1,
+    current_workload INTEGER DEFAULT 0,
     photo TEXT,
     department TEXT,
-    created_at TEXT NOT NULL
+    email TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT
 );
 
 -- Projects Table
@@ -54,12 +56,18 @@ CREATE TABLE public.projects (
     project_id TEXT PRIMARY KEY,
     project_name TEXT NOT NULL,
     description TEXT,
-    required_skills TEXT NOT NULL, -- semicolon-separated
-    deadline_days INTEGER NOT NULL,
-    priority TEXT NOT NULL,
+    required_skills TEXT DEFAULT '',
+    deadline_days INTEGER NOT NULL DEFAULT 30,
+    priority TEXT NOT NULL DEFAULT 'Medium',
     status TEXT DEFAULT 'planning',
     ai_plan JSONB,
-    created_at TEXT NOT NULL
+    estimated_duration TEXT,
+    budget TEXT,
+    preferred_tech TEXT,
+    preferred_roles JSONB,
+    team_size INTEGER DEFAULT 2,
+    created_at TEXT NOT NULL,
+    updated_at TEXT
 );
 
 -- Project History (success metrics data)
@@ -86,7 +94,10 @@ CREATE TABLE public.tasks (
     status TEXT,
     comments JSONB,
     deliverable JSONB,
-    created_at TEXT NOT NULL
+    progress_percent INTEGER DEFAULT 0,
+    hours_worked INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL,
+    updated_at TEXT
 );
 
 -- Notifications Table

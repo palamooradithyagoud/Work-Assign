@@ -4,25 +4,69 @@ import uuid
 import datetime
 import random
 import psycopg2
+import psycopg2.pool
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
-
 import re
+
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres.tdcdhgwgkkdklflxwuqt:ADITHYAGOUD%40789@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+)
 
 # Auto-adapt direct IPv6 Supabase hosts to IPv4 Pooler when running on Vercel
 if os.environ.get('VERCEL') and DATABASE_URL:
     match = re.search(r"db\.([a-z0-9]+)\.supabase\.co", DATABASE_URL)
     if match:
         project_ref = match.group(1)
-        # Convert to pooler format using ap-southeast-1 region (Singapore)
         DATABASE_URL = DATABASE_URL.replace(f"db.{project_ref}.supabase.co:5432", "aws-0-ap-southeast-1.pooler.supabase.com:6543")
         DATABASE_URL = DATABASE_URL.replace("postgresql://postgres:", f"postgresql://postgres.{project_ref}:")
 
+# ──────────────────────────────────────────────────────────────
+# CONNECTION POOL  (min=1, max=5, reused across requests)
+# ──────────────────────────────────────────────────────────────
+_pool = None
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        try:
+            _pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=1,
+                maxconn=5,
+                dsn=DATABASE_URL,
+                cursor_factory=RealDictCursor,
+                connect_timeout=10,
+                keepalives=1,
+                keepalives_idle=30,
+                keepalives_interval=5,
+                keepalives_count=3,
+            )
+            print("[DB] Connection pool created.")
+        except Exception as e:
+            print(f"[DB ERROR] Could not create connection pool: {e}")
+            raise
+    return _pool
+
+
 def get_conn():
-    return psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+    """Get a pooled connection. Caller must call release_conn() when done."""
+    return _get_pool().getconn()
+
+
+def release_conn(conn):
+    """Return a connection to the pool."""
+    try:
+        _get_pool().putconn(conn)
+    except Exception:
+        pass
+
+
+# ──────────────────────────────────────────────────────────────
+# HELPERS
+# ──────────────────────────────────────────────────────────────
 
 def _get_pk(table: str) -> str:
     if table == "employees":
@@ -35,212 +79,232 @@ def _get_pk(table: str) -> str:
         return "history_id"
     return "id"
 
-def get_all(table: str) -> list:
+
+def _execute(query: str, params=None, fetch: str = "none"):
+    """
+    Execute a query using a pooled connection.
+    fetch: "one" | "all" | "none"
+    Returns fetched row(s) or None.
+    Always commits on DML, always releases the connection.
+    """
+    conn = None
     try:
         conn = get_conn()
-        cur = conn.cursor()
-        cur.execute(f"SELECT * FROM public.{table};")
-        rows = cur.fetchall()
-        result = [dict(row) for row in rows]
-        cur.close()
-        conn.close()
-        return result
+        with conn.cursor() as cur:
+            cur.execute(query, params)
+            if fetch == "one":
+                row = cur.fetchone()
+                result = dict(row) if row else None
+            elif fetch == "all":
+                rows = cur.fetchall()
+                result = [dict(r) for r in rows]
+            else:
+                result = None
+            conn.commit()
+            return result
+    except Exception as e:
+        if conn:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise e
+    finally:
+        if conn:
+            release_conn(conn)
+
+
+# ──────────────────────────────────────────────────────────────
+# PUBLIC CRUD API
+# ──────────────────────────────────────────────────────────────
+
+def get_all(table: str) -> list:
+    try:
+        return _execute(f"SELECT * FROM public.{table};", fetch="all") or []
     except Exception as e:
         print(f"[DB ERROR] get_all {table}: {e}")
         return []
 
+
 def get_by_id(table: str, id_val: str) -> dict:
     try:
-        conn = get_conn()
-        cur = conn.cursor()
         pk = _get_pk(table)
-        cur.execute(f"SELECT * FROM public.{table} WHERE {pk} = %s;", (id_val,))
-        row = cur.fetchone()
-        result = dict(row) if row else None
-        cur.close()
-        conn.close()
-        return result
+        return _execute(
+            f"SELECT * FROM public.{table} WHERE {pk} = %s;",
+            (id_val,), fetch="one"
+        )
     except Exception as e:
         print(f"[DB ERROR] get_by_id {table}: {e}")
         return None
 
+
 def insert(table: str, item: dict) -> dict:
     pk = _get_pk(table)
     if pk not in item or not item[pk]:
-        prefix = "EMP" if table == "employees" else ("PRJ" if table == "projects" else ("T" if table == "tools" else ("H" if table == "project_history" else "")))
-        if prefix:
-            item[pk] = f"{prefix}{random.randint(100, 999)}"
-        else:
-            item[pk] = str(uuid.uuid4())
-            
+        prefix = (
+            "EMP" if table == "employees" else
+            "PRJ" if table == "projects" else
+            "T"   if table == "tools"     else
+            "H"   if table == "project_history" else ""
+        )
+        item[pk] = f"{prefix}{random.randint(100, 999)}" if prefix else str(uuid.uuid4())
+
     if "created_at" not in item and table not in ("tools", "project_history", "assignments"):
         item["created_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-        
+
     try:
-        conn = get_conn()
-        cur = conn.cursor()
-        
         columns = list(item.keys())
-        values = []
-        for col in columns:
-            val = item[col]
-            if isinstance(val, (dict, list)):
-                values.append(json.dumps(val))
-            else:
-                values.append(val)
-                
+        values = [json.dumps(v) if isinstance(v, (dict, list)) else v for v in item.values()]
         placeholders = ", ".join(["%s"] * len(columns))
         col_names = ", ".join(columns)
-        
-        query = f"INSERT INTO public.{table} ({col_names}) VALUES ({placeholders}) RETURNING *;"
-        cur.execute(query, values)
-        row = cur.fetchone()
-        conn.commit()
-        result = dict(row) if row else item
-        cur.close()
-        conn.close()
-        
-        if table != "audit_logs" and table != "notifications":
-            log_action(
+
+        result = _execute(
+            f"INSERT INTO public.{table} ({col_names}) VALUES ({placeholders}) RETURNING *;",
+            values, fetch="one"
+        )
+        saved = result if result else item
+
+        # Fire-and-forget audit log (skip for audit_logs/notifications to prevent recursion)
+        if table not in ("audit_logs", "notifications"):
+            _log_direct(
                 action=f"{table.upper()}_CREATED",
-                details=f"Created new item in {table} with ID {item[pk]}",
-                user_email="system@assigniq.com"
+                details=f"Created new item in {table} with ID {item[pk]}"
             )
-        return result
+        return saved
     except Exception as e:
         print(f"[DB ERROR] insert {table}: {e}")
         return item
 
+
 def update(table: str, id_val: str, updates: dict) -> dict:
     if not updates:
         return get_by_id(table, id_val)
-        
+
     if "updated_at" not in updates and table in ("projects", "tasks", "employees"):
         updates["updated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-        
+
     try:
-        conn = get_conn()
-        cur = conn.cursor()
         pk = _get_pk(table)
-        
         set_clauses = []
         values = []
         for k, v in updates.items():
             set_clauses.append(f"{k} = %s")
-            if isinstance(v, (dict, list)):
-                values.append(json.dumps(v))
-            else:
-                values.append(v)
-                
+            values.append(json.dumps(v) if isinstance(v, (dict, list)) else v)
         values.append(id_val)
         set_str = ", ".join(set_clauses)
-        
-        query = f"UPDATE public.{table} SET {set_str} WHERE {pk} = %s RETURNING *;"
-        cur.execute(query, values)
-        row = cur.fetchone()
-        conn.commit()
-        result = dict(row) if row else None
-        cur.close()
-        conn.close()
-        
-        if result and table != "audit_logs" and table != "notifications":
-            log_action(
+
+        result = _execute(
+            f"UPDATE public.{table} SET {set_str} WHERE {pk} = %s RETURNING *;",
+            values, fetch="one"
+        )
+        if result and table not in ("audit_logs", "notifications"):
+            _log_direct(
                 action=f"{table.upper()}_UPDATED",
-                details=f"Updated item {id_val} in {table}",
-                user_email="system@assigniq.com"
+                details=f"Updated item {id_val} in {table}"
             )
         return result
     except Exception as e:
         print(f"[DB ERROR] update {table}: {e}")
         return None
 
+
 def delete(table: str, id_val: str) -> bool:
     try:
-        conn = get_conn()
-        cur = conn.cursor()
         pk = _get_pk(table)
-        cur.execute(f"DELETE FROM public.{table} WHERE {pk} = %s RETURNING {pk};", (id_val,))
-        row = cur.fetchone()
-        conn.commit()
-        success = row is not None
-        cur.close()
-        conn.close()
-        
-        if success and table != "audit_logs" and table != "notifications":
-            log_action(
+        result = _execute(
+            f"DELETE FROM public.{table} WHERE {pk} = %s RETURNING {pk};",
+            (id_val,), fetch="one"
+        )
+        success = result is not None
+        if success and table not in ("audit_logs", "notifications"):
+            _log_direct(
                 action=f"{table.upper()}_DELETED",
-                details=f"Deleted item {id_val} from {table}",
-                user_email="system@assigniq.com"
+                details=f"Deleted item {id_val} from {table}"
             )
         return success
     except Exception as e:
         print(f"[DB ERROR] delete {table}: {e}")
         return False
 
-# Audit log helper
-def log_action(action: str, details: str, user_email: str = "system@assigniq.com"):
-    log_item = {
-        "id": str(uuid.uuid4()),
-        "action": action,
-        "details": details,
-        "user_email": user_email,
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
-    }
-    insert("audit_logs", log_item)
 
-# Notification helper
+# ──────────────────────────────────────────────────────────────
+# AUDIT  &  NOTIFICATIONS  (use _log_direct to avoid recursion)
+# ──────────────────────────────────────────────────────────────
+
+def _log_direct(action: str, details: str, user_email: str = "system@assigniq.com"):
+    """Write audit log directly (no recursive insert call)."""
+    try:
+        log_id = str(uuid.uuid4())
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        _execute(
+            "INSERT INTO public.audit_logs (id, action, details, user_email, created_at) "
+            "VALUES (%s, %s, %s, %s, %s);",
+            (log_id, action, details, user_email, now)
+        )
+    except Exception as e:
+        print(f"[DB WARN] audit log failed: {e}")
+
+
+def log_action(action: str, details: str, user_email: str = "system@assigniq.com"):
+    _log_direct(action, details, user_email)
+
+
 def add_notification(user_id: str, title: str, message: str, notif_type: str = "info"):
-    notif = {
-        "id": str(uuid.uuid4()),
-        "user_id": user_id,
-        "title": title,
-        "message": message,
-        "type": notif_type,
-        "is_read": False,
-        "created_at": datetime.datetime.utcnow().isoformat() + "Z"
-    }
-    insert("notifications", notif)
+    try:
+        notif_id = str(uuid.uuid4())
+        now = datetime.datetime.utcnow().isoformat() + "Z"
+        _execute(
+            "INSERT INTO public.notifications (id, user_id, title, message, type, is_read, created_at) "
+            "VALUES (%s, %s, %s, %s, %s, %s, %s);",
+            (notif_id, user_id, title, message, notif_type, False, now)
+        )
+    except Exception as e:
+        print(f"[DB WARN] add_notification failed: {e}")
+
+
+# ──────────────────────────────────────────────────────────────
+# DATABASE SEED  (only runs once on startup if DB is empty)
+# ──────────────────────────────────────────────────────────────
 
 def seed_database():
     try:
-        conn = get_conn()
-        cur = conn.cursor()
-        
-        # Check if users table exists and count users
-        table_exists = True
-        try:
-            cur.execute("SELECT COUNT(*) FROM public.users;")
-            user_count = cur.fetchone()[0]
-        except Exception:
-            # Transaction is aborted, roll back so we can execute DDL setup
-            conn.rollback()
-            table_exists = False
-            user_count = 0
-            
-        if not table_exists or user_count == 0:
-            print("[DB] Database is empty or uninitialized. Bootstrapping schemas and target seeds...")
+        # Quick check — uses the pool just like any other query
+        row = _execute("SELECT COUNT(*) as cnt FROM public.users;", fetch="one")
+        user_count = row["cnt"] if row else 0
+
+        if user_count == 0:
+            print("[DB] Database is empty. Bootstrapping schemas and seeds...")
             base_dir = os.path.dirname(os.path.abspath(__file__))
             sql_paths = [
                 os.path.join(base_dir, "supabase_schema.sql"),
                 "supabase_schema.sql",
-                "../supabase_schema.sql"
+                "../supabase_schema.sql",
             ]
-            
             sql_content = None
             for path in sql_paths:
                 if os.path.exists(path):
                     with open(path, "r", encoding="utf-8") as f:
                         sql_content = f.read()
                     break
-                    
+
             if sql_content:
-                cur.execute(sql_content)
-                conn.commit()
-                print("[DB] Database successfully initialized with target schemas and seeds.")
+                # DDL needs its own connection to avoid autocommit issues
+                conn = None
+                try:
+                    conn = get_conn()
+                    conn.autocommit = True
+                    with conn.cursor() as cur:
+                        cur.execute(sql_content)
+                    conn.autocommit = False
+                    print("[DB] Database initialized successfully.")
+                except Exception as e:
+                    print(f"[DB ERROR] seed DDL failed: {e}")
+                finally:
+                    if conn:
+                        conn.autocommit = False
+                        release_conn(conn)
             else:
-                print("[DB ERROR] Could not find supabase_schema.sql for database bootstrap.")
-                
-        cur.close()
-        conn.close()
+                print("[DB ERROR] Could not find supabase_schema.sql for bootstrap.")
     except Exception as e:
-        print(f"[DB ERROR] seed_database failed: {e}")
+        # Table may not exist yet — that's handled above; log and continue
+        print(f"[DB] seed_database note: {e}")

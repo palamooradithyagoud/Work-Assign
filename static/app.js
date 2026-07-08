@@ -166,30 +166,39 @@ async function loadAdminOverview() {
       fetch('/api/admin/pending-projects')
     ]);
 
-    if (!metricsResp.ok || !pendingResp.ok) {
-      console.error('Admin overview fetch failed', metricsResp.status, pendingResp.status);
-      toast('Failed to load dashboard data.', 'error');
-      return;
+    let metrics = { kpis: {} };
+    let allPending = [];
+
+    if (metricsResp.ok) {
+      try { metrics = await metricsResp.json(); } catch(e) {}
+    } else {
+      console.warn('metrics/v2 failed:', metricsResp.status);
     }
 
-    const metrics = await metricsResp.json();
-    allProjects   = await pendingResp.json();   // use enriched list for pipeline too
+    if (pendingResp.ok) {
+      try { allPending = await pendingResp.json(); } catch(e) {}
+    } else {
+      const errText = await pendingResp.text().catch(() => '');
+      console.warn('pending-projects failed:', pendingResp.status, errText);
+      toast('Could not load project list: ' + pendingResp.status, 'warning');
+    }
 
+    allProjects = allPending;
     const k = metrics.kpis || {};
-    document.getElementById('kpi-total-projects').textContent    = k.total_projects    ?? allProjects.length;
-    document.getElementById('kpi-active-projects').textContent   = k.active_projects   ?? allProjects.filter(p => p.workflow_status === 'active').length;
-    document.getElementById('kpi-pending-approvals').textContent = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    document.getElementById('kpi-total-projects').textContent    = k.total_projects    ?? allPending.length;
+    document.getElementById('kpi-active-projects').textContent   = k.active_projects   ?? allPending.filter(p => p.workflow_status === 'active').length;
+    document.getElementById('kpi-pending-approvals').textContent = allPending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
     document.getElementById('kpi-total-employees').textContent   = k.total_employees   ?? '—';
     document.getElementById('kpi-total-teams').textContent       = k.total_teams       ?? '—';
-    document.getElementById('kpi-avg-perf').textContent          = (k.avg_performance != null ? k.avg_performance + '%' : '—');
+    document.getElementById('kpi-avg-perf').textContent          = k.avg_performance != null ? k.avg_performance + '%' : '—';
 
     // Update approval count badge in sidebar
-    const pendingCount = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
+    const pendingCount = allPending.filter(p => p.workflow_status === 'awaiting_admin_approval').length;
     const badge = document.getElementById('approval-count-badge');
     if (badge) { badge.textContent = pendingCount; badge.style.display = pendingCount > 0 ? 'flex' : 'none'; }
 
     // Recent projects pipeline
-    const recentProjs = allProjects.slice(-6).reverse();
+    const recentProjs = allPending.slice(-6).reverse();
     const projListEl  = document.getElementById('admin-projects-list');
     if (projListEl) {
       if (recentProjs.length === 0) {
@@ -208,10 +217,10 @@ async function loadAdminOverview() {
       }
     }
 
-    // Plan approvals widget — projects waiting for Admin sign-off
+    // Plan approvals widget
     const appWidget = document.getElementById('admin-approvals-widget');
     if (appWidget) {
-      const awaitingPlans = allProjects.filter(p => p.workflow_status === 'awaiting_admin_approval');
+      const awaitingPlans = allPending.filter(p => p.workflow_status === 'awaiting_admin_approval');
       if (awaitingPlans.length === 0) {
         appWidget.innerHTML = `<div class="empty-state" style="padding:20px"><i class="fa-regular fa-circle-check"></i><p>No pending plan approvals</p></div>`;
       } else {

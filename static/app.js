@@ -472,6 +472,54 @@ async function decideApproval(decision) {
   } catch(e) { console.error(e); }
 }
 
+// Called by "Approve & Active Project" / "Reject Plan" buttons in the approval modal
+async function adminPlanDecision(decision) {
+  if (!currentProject || !currentProject.project_id) {
+    toast('No project loaded. Please re-open the review modal.', 'error');
+    return;
+  }
+  const comment = document.getElementById('approval-comment-input')?.value?.trim() || '';
+  if (decision === 'reject' && !comment) {
+    toast('Please add a feedback comment before rejecting.', 'warning');
+    return;
+  }
+
+  const btn = decision === 'approve'
+    ? document.querySelector('#approval-detail-footer .btn-success')
+    : document.querySelector('#approval-detail-footer .btn-danger');
+  if (btn) { btn.disabled = true; btn.innerHTML = `<div class="spinner"></div> ${decision === 'approve' ? 'Approving…' : 'Rejecting…'}`; }
+
+  try {
+    const resp = await fetch(`/api/projects/${currentProject.project_id}/admin-decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision, comment })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) {
+      toast(data.error || 'Action failed.', 'error');
+      if (btn) { btn.disabled = false; btn.innerHTML = decision === 'approve' ? '<i class="fa-solid fa-check"></i> Approve & Active Project' : '<i class="fa-solid fa-xmark"></i> Reject Plan'; }
+      return;
+    }
+
+    if (decision === 'approve') {
+      toast(`✅ Project "${currentProject.project_name}" approved & activated! PM has been notified.`, 'success');
+    } else {
+      toast(`❌ Project plan rejected. PM has been notified with your feedback.`, 'error');
+    }
+
+    closeModal('modal-approval-detail');
+    // Refresh both the approvals list and the overview
+    await Promise.all([loadApprovals(), loadAdminOverview()]);
+  } catch(e) {
+    console.error('adminPlanDecision error:', e);
+    toast('Network error. Please try again.', 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = decision === 'approve' ? '<i class="fa-solid fa-check"></i> Approve & Active Project' : '<i class="fa-solid fa-xmark"></i> Reject Plan'; }
+  }
+}
+
+
 async function quickApprove(approvalId) {
   await fetch(`/api/lead-approvals/${approvalId}/decide`, {
     method: 'POST',

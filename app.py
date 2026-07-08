@@ -1863,10 +1863,22 @@ def api_admin_decision(id):
     # Notify PM
     pm_id = proj.get("assigned_pm")
     if pm_id:
-        title = "Project Plan Approved" if decision == "approve" else "Project Plan Rejected"
-        msg = f"Admin approved execution plan for '{proj['project_name']}'." if decision == "approve" else \
-              f"Admin rejected execution plan for '{proj['project_name']}': {comment}"
-        notif_type = "success" if decision == "approve" else "error"
+        if decision == "approve":
+            title = "🎉 Project Approved — Start Now!"
+            msg = (
+                f"Admin has approved the execution plan for '{proj['project_name']}'.\n"
+                f"The project is now ACTIVE. You can start the project from your dashboard.\n"
+                f"Your team has been assigned and notified. Kickoff when ready!"
+            )
+            notif_type = "success"
+        else:
+            title = "❌ Project Plan Rejected"
+            msg = (
+                f"Admin rejected the execution plan for '{proj['project_name']}'.\n"
+                f"Feedback: {comment}\n"
+                f"Please review the feedback, update the plan, and re-submit."
+            )
+            notif_type = "error"
         db.add_notification(pm_id, title, msg, notif_type)
         
     if decision == "approve":
